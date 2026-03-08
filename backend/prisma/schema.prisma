@@ -1,0 +1,227 @@
+// Prisma Schema - Campaign Manager
+// PostgreSQL + Docker
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// Enums
+// ==========================================
+
+enum UserRole {
+  ADMIN
+  OPERATOR
+  VIEWER
+}
+
+enum FollowUpStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  RESPONDED
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  PAUSED
+  COMPLETED
+}
+
+enum ScheduleStatus {
+  PENDING
+  SENT
+  CANCELLED
+  FAILED
+}
+
+enum TemplateType {
+  FOLLOW_UP
+  CAMPAIGN
+}
+
+// ==========================================
+// Models
+// ==========================================
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  role         UserRole @default(OPERATOR)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  templates         MessageTemplate[]
+  campaigns         Campaign[]
+  scheduledMessages ScheduledMessage[]
+  auditLogs         AuditLog[]
+
+  @@map("users")
+}
+
+model Settings {
+  id                        String   @id @default(uuid())
+  chatwootUrl               String?  @map("chatwoot_url")
+  chatwootApiToken          String?  @map("chatwoot_api_token")
+  chatwootAccountId         String?  @map("chatwoot_account_id")
+  wuzapiEndpoint            String?  @map("wuzapi_endpoint")
+  wuzapiToken               String?  @map("wuzapi_token")
+  wuzapiInstanceId          String?  @map("wuzapi_instance_id")
+  workingHoursStart         String   @default("08:00") @map("working_hours_start")
+  workingHoursEnd           String   @default("18:00") @map("working_hours_end")
+  workingDays               Json     @default("[1,2,3,4,5]") @map("working_days")
+  defaultFollowUpIntervalDays Int    @default(1) @map("default_follow_up_interval_days")
+  maxFollowUpAttempts       Int      @default(5) @map("max_follow_up_attempts")
+  createdAt                 DateTime @default(now()) @map("created_at")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
+}
+
+model MessageTemplate {
+  id        String       @id @default(uuid())
+  name      String
+  content   String
+  variables Json         @default("[]")
+  type      TemplateType @default(FOLLOW_UP)
+  createdBy String       @map("created_by")
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  user             User               @relation(fields: [createdBy], references: [id])
+  followUpMessages FollowUpMessage[]
+
+  @@map("message_templates")
+}
+
+model Lead {
+  id                String         @id @default(uuid())
+  chatwootContactId Int?           @map("chatwoot_contact_id")
+  name              String
+  phone             String
+  currentStage      String?        @map("current_stage")
+  followUpStatus    FollowUpStatus @default(ACTIVE) @map("follow_up_status")
+  followUpAttempts  Int            @default(0) @map("follow_up_attempts")
+  lastMessageSentAt DateTime?      @map("last_message_sent_at")
+  lastResponseAt    DateTime?      @map("last_response_at")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+
+  followUpMessages FollowUpMessage[]
+
+  @@map("leads")
+}
+
+model FollowUpMessage {
+  id                 String        @id @default(uuid())
+  leadId             String        @map("lead_id")
+  templateId         String?       @map("template_id")
+  messageContent     String        @map("message_content")
+  status             MessageStatus @default(PENDING)
+  sentAt             DateTime?     @map("sent_at")
+  responseReceivedAt DateTime?     @map("response_received_at")
+  wuzapiMessageId    String?       @map("wuzapi_message_id")
+  errorMessage       String?       @map("error_message")
+  attemptNumber      Int           @default(1) @map("attempt_number")
+  createdAt          DateTime      @default(now()) @map("created_at")
+
+  lead     Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  template MessageTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@map("follow_up_messages")
+}
+
+model Campaign {
+  id          String         @id @default(uuid())
+  name        String
+  description String?
+  status      CampaignStatus @default(DRAFT)
+  startDate   DateTime?      @map("start_date")
+  endDate     DateTime?      @map("end_date")
+  createdBy   String         @map("created_by")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  user              User                @relation(fields: [createdBy], references: [id])
+  images            CampaignImage[]
+  recipients        CampaignRecipient[]
+  scheduledMessages ScheduledMessage[]
+
+  @@map("campaigns")
+}
+
+model CampaignImage {
+  id         String  @id @default(uuid())
+  campaignId String  @map("campaign_id")
+  imageUrl   String  @map("image_url")
+  caption    String?
+  order      Int     @default(0)
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@map("campaign_images")
+}
+
+model CampaignRecipient {
+  id              String        @id @default(uuid())
+  campaignId      String        @map("campaign_id")
+  phone           String
+  name            String?
+  status          MessageStatus @default(PENDING)
+  sentAt          DateTime?     @map("sent_at")
+  wuzapiMessageId String?       @map("wuzapi_message_id")
+  errorMessage    String?       @map("error_message")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@map("campaign_recipients")
+}
+
+model ScheduledMessage {
+  id             String         @id @default(uuid())
+  recipientPhone String         @map("recipient_phone")
+  recipientName  String?        @map("recipient_name")
+  messageContent String         @map("message_content")
+  scheduledFor   DateTime       @map("scheduled_for")
+  status         ScheduleStatus @default(PENDING)
+  campaignId     String?        @map("campaign_id")
+  createdBy      String         @map("created_by")
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  user     User      @relation(fields: [createdBy], references: [id])
+
+  @@map("scheduled_messages")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  details    Json?
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
