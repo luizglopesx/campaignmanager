@@ -24,7 +24,7 @@ function createClient(cfg: KanbanConfig) {
     baseURL: cfg.baseUrl,
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${cfg.apiToken}`,
+      'api_access_token': cfg.apiToken,
     },
     timeout: 15000,
   });
@@ -35,23 +35,26 @@ function createClient(cfg: KanbanConfig) {
 // ==========================================
 
 /**
- * Lista todos os boards/funis disponíveis
+ * Lista labels do Chatwoot (usadas como "boards")
  */
 export async function listBoards(): Promise<any[]> {
   const cfg = await getConfig();
   const client = createClient(cfg);
-  const res = await client.get('/kanban/boards');
-  return res.data?.boards || res.data || [];
+  const res = await client.get(`/api/v1/accounts/${cfg.accountId}/labels`);
+  return res.data?.payload || [];
 }
 
 /**
- * Lista cards de um board específico
+ * Lista conversas de uma label específica (label title = boardId)
  */
-export async function listCards(boardId: string): Promise<any[]> {
+export async function listCards(labelTitle: string): Promise<any[]> {
   const cfg = await getConfig();
   const client = createClient(cfg);
-  const res = await client.get(`/kanban/boards/${boardId}/cards`);
-  return res.data?.cards || res.data || [];
+  const res = await client.get(
+    `/api/v1/accounts/${cfg.accountId}/conversations`,
+    { params: { labels: [labelTitle], page: 1 } }
+  );
+  return res.data?.data?.payload || [];
 }
 
 /**
@@ -166,16 +169,19 @@ export async function syncLeadsFromBoard(boardId: string, targetStageNames?: str
       }
     }
 
-    const phone = card.contact?.phone || card.phone;
-    const name = card.contact?.name || card.title || 'Sem nome';
+    // Estrutura de conversa Chatwoot
+    const contact = card.meta?.sender || card.contact || {};
+    const phone = contact.phone_number || contact.phone;
+    const name = contact.name || 'Sem nome';
+    const contactId = contact.id || 0;
+    const label = targetStageNames?.[0] || boardId;
 
     if (!phone) continue;
 
-    // Verifica se já existe no banco
     const existing = await prisma.lead.findFirst({
       where: {
         OR: [
-          { chatwootContactId: Number(card.contactId || card.contact?.id || 0) },
+          { chatwootContactId: Number(contactId) },
           { phone: phone },
         ],
       },
@@ -185,7 +191,7 @@ export async function syncLeadsFromBoard(boardId: string, targetStageNames?: str
       await prisma.lead.update({
         where: { id: existing.id },
         data: {
-          currentStage: card.stage?.name || card.stageName || existing.currentStage,
+          currentStage: label,
           lastResponseAt: new Date(),
         },
       });
@@ -193,10 +199,10 @@ export async function syncLeadsFromBoard(boardId: string, targetStageNames?: str
     } else {
       await prisma.lead.create({
         data: {
-          chatwootContactId: Number(card.contactId || card.contact?.id || 0),
+          chatwootContactId: Number(contactId),
           name,
           phone,
-          currentStage: card.stage?.name || card.stageName || 'Novo',
+          currentStage: label,
           followUpStatus: 'ACTIVE',
           followUpAttempts: 0,
         },

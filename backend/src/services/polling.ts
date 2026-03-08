@@ -47,23 +47,10 @@ async function poll(): Promise<void> {
       return;
     }
 
-    // Buscar boards disponíveis
-    const boards = await kanbanService.listBoards();
-
-    if (boards.length === 0) {
-      console.log('📋 Nenhum board encontrado no Kanban');
-      return;
-    }
-
-    let totalCreated = 0;
-    let totalUpdated = 0;
-
-    for (const board of boards) {
-      const boardId = board.id || board._id;
-      const result = await kanbanService.syncLeadsFromBoard(String(boardId));
-      totalCreated += result.created;
-      totalUpdated += result.updated;
-    }
+    // Sincroniza direto da label "meio" do Kanban Chatwoot
+    const result = await kanbanService.syncLeadsFromBoard('meio');
+    const totalCreated = result.created;
+    const totalUpdated = result.updated;
 
     // Para leads recém-criados, agendar follow-up
     if (totalCreated > 0) {

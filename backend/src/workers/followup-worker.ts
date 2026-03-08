@@ -122,6 +122,11 @@ async function processFollowUp(job: Job<FollowUpJobData>) {
     }
   }
 
+  // Delay aleatório entre leads (15-45s) para evitar detecção de bot
+  const delayMs = Math.floor(Math.random() * (45000 - 15000 + 1)) + 15000;
+  console.log(`⏳ Aguardando ${(delayMs / 1000).toFixed(0)}s antes de enviar para ${lead.phone}...`);
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
+
   // Enviar via WuzAPI
   const result = await wuzapiService.sendText(lead.phone, messageContent);
 

@@ -131,13 +131,11 @@ router.post(
         return;
       }
 
-      const response = await axios.get(
-        `${settings.wuzapiEndpoint}/session/status/${settings.wuzapiInstanceId}`,
-        {
-          headers: { Authorization: `Bearer ${settings.wuzapiToken}` },
-          timeout: 10000,
-        }
-      );
+      const endpoint = settings.wuzapiEndpoint.replace(/\/$/, '');
+      const response = await axios.get(`${endpoint}/session/status`, {
+        headers: { Token: settings.wuzapiToken },
+        timeout: 10000,
+      });
 
       res.json({
         success: true,

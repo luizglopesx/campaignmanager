@@ -59,6 +59,11 @@ async function processCampaignMessage(job: Job<CampaignJobData>) {
     // Removida atualização para 'PROCESSING' porque o Enum MessageStatus não a possui
     // E não é estritamente necessário para travar já que a task foi atribuída ao bullmq.
 
+    // Delay aleatório entre destinatários (15-45s) para evitar detecção de bot
+    const delayMs = Math.floor(Math.random() * (45000 - 15000 + 1)) + 15000;
+    console.log(`⏳ Aguardando ${(delayMs / 1000).toFixed(0)}s antes de enviar para ${recipient.phone}...`);
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+
     let success = false;
     let errorMessage: string | null = null;
 
@@ -190,15 +195,12 @@ export async function startCampaign(campaignId: string): Promise<{ queued: numbe
     },
   });
 
-  // Enfileirar cada destinatário com delay entre eles
-  const delayBetween = config.messageDelayMs || 3000;
-
+  // Enfileirar cada destinatário (delay real é aplicado dentro do processador)
   for (let i = 0; i < campaign.recipients.length; i++) {
     await campaignQueue.add('campaign-send', {
       campaignId,
       recipientId: campaign.recipients[i].id,
     }, {
-      delay: i * delayBetween,
       attempts: 2,
       backoff: { type: 'exponential', delay: 5000 },
       removeOnComplete: 100,

@@ -2,6 +2,8 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { pollingService } from '../services/polling';
+import { scheduleFollowUp } from '../workers/followup-worker';
 
 const router = Router();
 
@@ -93,8 +95,31 @@ router.put('/:id/status', authenticate, async (req: AuthRequest, res: Response):
   }
 });
 
+// POST /api/leads/poll — dispara o polling manualmente
+router.post('/poll', authenticate, async (_req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    await pollingService.poll();
+    res.json({ success: true, message: 'Polling executado com sucesso' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/leads/:id/trigger-followup — dispara follow-up imediato para um lead
+router.post('/:id/trigger-followup', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const lead = await prisma.lead.findUnique({ where: { id: String(req.params.id) } });
+    if (!lead) { res.status(404).json({ error: 'Lead não encontrado' }); return; }
+
+    await scheduleFollowUp(lead.id, undefined, 0);
+    res.json({ success: true, message: `Follow-up agendado para ${lead.name}` });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // GET /api/leads/stats/overview
-router.get('/stats/overview', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/stats/overview', authenticate, async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
     const [active, paused, completed, responded, totalMessages, todayMessages] = await Promise.all([
       prisma.lead.count({ where: { followUpStatus: 'ACTIVE' } }),
