@@ -37,6 +37,7 @@ export const authApi = {
     api.post('/auth/register', data),
   me: () => api.get('/auth/me'),
   users: () => api.get('/auth/users'),
+  updateMe: (data: any) => api.put('/auth/me', data),
   deleteUser: (id: string) => api.delete(`/auth/users/${id}`),
 };
 

@@ -21,6 +21,12 @@ const registerSchema = z.object({
   role: z.enum(['ADMIN', 'OPERATOR', 'VIEWER']).optional().default('OPERATOR'),
 });
 
+const updateMeSchema = z.object({
+  email: z.string().email('Email inválido').optional(),
+  name: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres').optional(),
+  password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres').optional(),
+});
+
 // POST /api/auth/login
 router.post('/login', async (req, res: Response): Promise<void> => {
   try {
@@ -133,6 +139,46 @@ router.post('/register', async (req: AuthRequest, res: Response): Promise<void> 
 // GET /api/auth/me
 router.get('/me', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   res.json({ user: req.user });
+});
+
+// PUT /api/auth/me
+router.put('/me', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { email, name, password } = updateMeSchema.parse(req.body);
+    const userId = req.user!.id;
+
+    const data: any = {};
+    if (email) {
+      // Verificar se email já existe em outro usuário
+      const existing = await prisma.user.findFirst({
+        where: { email, NOT: { id: userId } }
+      });
+      if (existing) {
+        res.status(409).json({ error: 'Este e-mail já está sendo usado' });
+        return;
+      }
+      data.email = email;
+    }
+    if (name) data.name = name;
+    if (password) {
+      data.passwordHash = await bcrypt.hash(password, 12);
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data,
+      select: { id: true, email: true, name: true, role: true }
+    });
+
+    res.json({ user: updatedUser });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: error.errors[0].message });
+      return;
+    }
+    console.error('Update me error:', error);
+    res.status(500).json({ error: 'Erro ao atualizar perfil' });
+  }
 });
 
 // GET /api/auth/users (admin only)

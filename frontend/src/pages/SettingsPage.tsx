@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { settingsApi } from '../services/api';
-import { Settings, Wifi, Clock, Save, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { authApi, settingsApi } from '../services/api';
+import { Settings, Wifi, Clock, Save, Loader2, CheckCircle, XCircle, User } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
 
 const cardStyle: React.CSSProperties = {
   backgroundColor: '#fff',
@@ -34,14 +35,13 @@ const btnOutlineSmall: React.CSSProperties = {
   backgroundColor: '#fff',
   fontSize: '13px',
   fontWeight: 500,
-  color: '#374151',
-  cursor: 'pointer',
-  transition: 'background-color 0.15s',
 };
 
 export default function SettingsPage() {
+  const { user: currentUser, setUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
   const [activeTab, setActiveTab] = useState('integrations');
   const [chatwootTest, setChatwootTest] = useState<null | boolean>(null);
   const [wuzapiTest, setWuzapiTest] = useState<null | boolean>(null);
@@ -52,6 +52,23 @@ export default function SettingsPage() {
     workingHoursStart: '08:00', workingHoursEnd: '18:00', workingDays: [1,2,3,4,5],
     defaultFollowUpIntervalDays: 1, maxFollowUpAttempts: 5,
   });
+
+  const [profileForm, setProfileForm] = useState({
+    name: currentUser?.name || '',
+    email: currentUser?.email || '',
+    password: '',
+    confirmPassword: '',
+  });
+
+  useEffect(() => {
+    if (currentUser) {
+      setProfileForm(prev => ({
+        ...prev,
+        name: currentUser.name,
+        email: currentUser.email
+      }));
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     loadSettings();
@@ -78,6 +95,31 @@ export default function SettingsPage() {
     catch { toast.error('Erro ao salvar'); } finally { setSaving(false); }
   };
 
+  const saveProfile = async () => {
+    if (profileForm.password && profileForm.password !== profileForm.confirmPassword) {
+      toast.error('As senhas não coincidem');
+      return;
+    }
+
+    try {
+      setSavingProfile(true);
+      const data: any = { name: profileForm.name, email: profileForm.email };
+      if (profileForm.password) data.password = profileForm.password;
+
+      const res = await authApi.updateMe(data);
+      if (res.data.user) {
+        setUser(res.data.user);
+        localStorage.setItem('cm_user', JSON.stringify(res.data.user));
+        toast.success('Perfil atualizado com sucesso!');
+        setProfileForm(prev => ({ ...prev, password: '', confirmPassword: '' }));
+      }
+    } catch (e: any) {
+      toast.error(e.response?.data?.error || 'Erro ao atualizar perfil');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
   const testChatwoot = async () => {
     try { setChatwootTest(null); const res = await settingsApi.testChatwoot(); setChatwootTest(res.data.success); toast.success(res.data.message); }
     catch (e: any) { setChatwootTest(false); toast.error(e.response?.data?.error || 'Falha no teste'); }
@@ -95,6 +137,7 @@ export default function SettingsPage() {
     { id: 'integrations', label: 'Integrações', icon: Wifi },
     { id: 'schedule', label: 'Agendamento', icon: Clock },
     { id: 'followup', label: 'Follow-up', icon: Settings },
+    { id: 'profile', label: 'Meu Perfil', icon: User },
   ];
 
   if (loading) return (
@@ -290,19 +333,57 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Save */}
-      <div>
-        <button
-          onClick={saveSettings}
-          disabled={saving}
-          style={btnPrimary(saving)}
-          onMouseOver={(e) => { if (!saving) e.currentTarget.style.backgroundColor = '#2563EB'; }}
-          onMouseOut={(e) => { if (!saving) e.currentTarget.style.backgroundColor = '#3B82F6'; }}
-        >
-          {saving ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={18} />}
-          Salvar Configurações
-        </button>
-      </div>
+      {/* Perfil */}
+      {activeTab === 'profile' && (
+        <div style={cardStyle}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid #F3F4F6' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1F2937', margin: 0 }}>Dados do Perfil</h3>
+          </div>
+          <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '16px' }}>
+              <InputField label="Nome Completo" value={profileForm.name} onChange={v => setProfileForm({...profileForm, name: v})} placeholder="Seu nome" />
+              <InputField label="E-mail" value={profileForm.email} onChange={v => setProfileForm({...profileForm, email: v})} placeholder="seu@email.com" />
+            </div>
+            
+            <div style={{ borderTop: '1px solid #F3F4F6', paddingTop: '20px', marginTop: '10px' }}>
+              <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#374151', marginBottom: '16px' }}>Trocar Senha (Opcional)</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '16px' }}>
+                <InputField label="Nova Senha" value={profileForm.password} onChange={v => setProfileForm({...profileForm, password: v})} type="password" placeholder="Mínimo 6 caracteres" />
+                <InputField label="Confirmar Nova Senha" value={profileForm.confirmPassword} onChange={v => setProfileForm({...profileForm, confirmPassword: v})} type="password" placeholder="Repita a senha" />
+              </div>
+            </div>
+
+            <div style={{ paddingTop: '8px' }}>
+              <button
+                onClick={saveProfile}
+                disabled={savingProfile}
+                style={btnPrimary(savingProfile)}
+                onMouseOver={(e) => { if (!savingProfile) e.currentTarget.style.backgroundColor = '#2563EB'; }}
+                onMouseOut={(e) => { if (!savingProfile) e.currentTarget.style.backgroundColor = '#3B82F6'; }}
+              >
+                {savingProfile ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={18} />}
+                Atualizar Perfil
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Save Settings Button (Only for other tabs) */}
+      {activeTab !== 'profile' && (
+        <div>
+          <button
+            onClick={saveSettings}
+            disabled={saving}
+            style={btnPrimary(saving)}
+            onMouseOver={(e) => { if (!saving) e.currentTarget.style.backgroundColor = '#2563EB'; }}
+            onMouseOut={(e) => { if (!saving) e.currentTarget.style.backgroundColor = '#3B82F6'; }}
+          >
+            {saving ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={18} />}
+            Salvar Configurações
+          </button>
+        </div>
+      )}
     </div>
   );
 }
