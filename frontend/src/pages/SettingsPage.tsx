@@ -3,6 +3,42 @@ import { settingsApi } from '../services/api';
 import { Settings, Wifi, Clock, Save, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+const cardStyle: React.CSSProperties = {
+  backgroundColor: '#fff',
+  border: '1px solid #E5E7EB',
+  borderRadius: '12px',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)',
+  overflow: 'hidden',
+};
+
+const btnPrimary = (disabled?: boolean): React.CSSProperties => ({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '8px',
+  padding: '10px 24px',
+  borderRadius: '8px',
+  border: 'none',
+  backgroundColor: disabled ? '#BFDBFE' : '#3B82F6',
+  color: '#fff',
+  fontSize: '14px',
+  fontWeight: 500,
+  cursor: disabled ? 'not-allowed' : 'pointer',
+  transition: 'background-color 0.15s',
+});
+
+const btnOutlineSmall: React.CSSProperties = {
+  padding: '8px 16px',
+  borderRadius: '8px',
+  border: '1px solid #E5E7EB',
+  backgroundColor: '#fff',
+  fontSize: '13px',
+  fontWeight: 500,
+  color: '#374151',
+  cursor: 'pointer',
+  transition: 'background-color 0.15s',
+};
+
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -11,7 +47,7 @@ export default function SettingsPage() {
   const [wuzapiTest, setWuzapiTest] = useState<null | boolean>(null);
 
   const [form, setForm] = useState({
-    chatwootUrl: '', chatwootApiToken: '', chatwootAccountId: '',
+    chatwootUrl: '', chatwootApiToken: '', chatwootBotToken: '', chatwootAccountId: '',
     wuzapiEndpoint: '', wuzapiToken: '', wuzapiInstanceId: '',
     workingHoursStart: '08:00', workingHoursEnd: '18:00', workingDays: [1,2,3,4,5],
     defaultFollowUpIntervalDays: 1, maxFollowUpAttempts: 5,
@@ -27,7 +63,7 @@ export default function SettingsPage() {
       if (res.data.settings) {
         const s = res.data.settings;
         setForm({
-          chatwootUrl: s.chatwootUrl || '', chatwootApiToken: s.chatwootApiToken || '', chatwootAccountId: s.chatwootAccountId || '',
+          chatwootUrl: s.chatwootUrl || '', chatwootApiToken: s.chatwootApiToken || '', chatwootBotToken: s.chatwootBotToken || '', chatwootAccountId: s.chatwootAccountId || '',
           wuzapiEndpoint: s.wuzapiEndpoint || '', wuzapiToken: s.wuzapiToken || '', wuzapiInstanceId: s.wuzapiInstanceId || '',
           workingHoursStart: s.workingHoursStart || '08:00', workingHoursEnd: s.workingHoursEnd || '18:00',
           workingDays: (s.workingDays as number[]) || [1,2,3,4,5],
@@ -62,31 +98,44 @@ export default function SettingsPage() {
   ];
 
   if (loading) return (
-    <div className="space-y-4 max-w-3xl">
-      {[1,2,3].map(i => <div key={i} className="h-16 rounded-xl bg-gray-100 animate-pulse" />)}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '768px' }}>
+      {[1,2,3].map(i => (
+        <div key={i} style={{ height: '64px', borderRadius: '12px', backgroundColor: '#F3F4F6', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
+      ))}
     </div>
   );
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-3xl">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '28px', maxWidth: '768px' }}>
       <div>
-        <h1 style={{ fontSize: '22px', fontWeight: 600, color: '#1F2937' }}>Configurações</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Configure integrações e parâmetros do sistema</p>
+        <h1 style={{ fontSize: '22px', fontWeight: 600, color: '#1F2937', margin: 0 }}>Configurações</h1>
+        <p style={{ fontSize: '13px', color: '#6B7280', marginTop: '4px' }}>Configure integrações e parâmetros do sistema</p>
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="flex">
+      <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #E5E7EB' }}>
+        <div style={{ display: 'flex', overflowX: 'auto', gap: '8px' }}>
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 text-sm font-medium transition-colors border-b-2 ${
-                activeTab === tab.id
-                  ? 'border-blue-500 text-blue-500 bg-white'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-              style={{ padding: '12px 16px', fontSize: '14px' }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 16px',
+                fontSize: '14px',
+                fontWeight: 500,
+                border: 'none',
+                borderBottom: activeTab === tab.id ? '2px solid #3B82F6' : '2px solid transparent',
+                backgroundColor: 'transparent',
+                color: activeTab === tab.id ? '#3B82F6' : '#6B7280',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseOver={(e) => { if (activeTab !== tab.id) e.currentTarget.style.color = '#374151'; }}
+              onMouseOut={(e) => { if (activeTab !== tab.id) e.currentTarget.style.color = '#6B7280'; }}
             >
               <tab.icon size={15} />
               {tab.label}
@@ -97,56 +146,61 @@ export default function SettingsPage() {
 
       {/* Integrações */}
       {activeTab === 'integrations' && (
-        <div className="space-y-5">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* Chatwoot */}
-          <div
-            className="bg-white rounded-xl border border-gray-200"
-            style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)' }}
-          >
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1F2937' }}>Chatwoot / Kanban API</h3>
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #F3F4F6' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1F2937', margin: 0 }}>Chatwoot / Kanban API</h3>
               {chatwootTest !== null && (
                 chatwootTest
-                  ? <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md" style={{ background: '#ECFDF5', color: '#047857' }}><CheckCircle size={13} /> Conectado</span>
-                  : <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md" style={{ background: '#FEF2F2', color: '#DC2626' }}><XCircle size={13} /> Falhou</span>
+                  ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 500, padding: '4px 10px', borderRadius: '6px', background: '#ECFDF5', color: '#047857' }}><CheckCircle size={13} /> Conectado</span>
+                  : <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 500, padding: '4px 10px', borderRadius: '6px', background: '#FEF2F2', color: '#DC2626' }}><XCircle size={13} /> Falhou</span>
               )}
             </div>
-            <div className="p-5 space-y-4">
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <InputField label="URL da API" value={form.chatwootUrl} onChange={v => setForm({...form, chatwootUrl: v})} placeholder="https://chatwoot.senhorcolchao.com" />
-              <InputField label="API Token" value={form.chatwootApiToken} onChange={v => setForm({...form, chatwootApiToken: v})} placeholder="Token de acesso" type="password" />
+              <InputField label="API Token (Admin)" value={form.chatwootApiToken} onChange={v => setForm({...form, chatwootApiToken: v})} placeholder="Token de administrador (Sincronização)" type="password" />
+              <InputField label="Token do Robô/Agente (Opcional)" value={form.chatwootBotToken} onChange={v => setForm({...form, chatwootBotToken: v})} placeholder="Para seguir via robô em Broad./Follow" type="password" />
               <InputField label="Account ID" value={form.chatwootAccountId} onChange={v => setForm({...form, chatwootAccountId: v})} placeholder="1" />
-              <button
-                onClick={testChatwoot}
-                className="px-4 py-2 rounded-lg border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
-              >
-                Testar Conexão
-              </button>
+              
+              <div style={{ paddingTop: '8px' }}>
+                <button
+                  onClick={testChatwoot}
+                  style={btnOutlineSmall}
+                  onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#F9FAFB')}
+                  onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#fff')}
+                >
+                  Testar Conexão
+                </button>
+              </div>
             </div>
           </div>
 
           {/* WuzAPI */}
-          <div
-            className="bg-white rounded-xl border border-gray-200"
-            style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)' }}
-          >
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1F2937' }}>WuzAPI (WhatsApp)</h3>
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #F3F4F6' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1F2937', margin: 0 }}>WuzAPI (WhatsApp)</h3>
               {wuzapiTest !== null && (
                 wuzapiTest
-                  ? <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md" style={{ background: '#ECFDF5', color: '#047857' }}><CheckCircle size={13} /> Conectado</span>
-                  : <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md" style={{ background: '#FEF2F2', color: '#DC2626' }}><XCircle size={13} /> Falhou</span>
+                  ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 500, padding: '4px 10px', borderRadius: '6px', background: '#ECFDF5', color: '#047857' }}><CheckCircle size={13} /> Conectado</span>
+                  : <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 500, padding: '4px 10px', borderRadius: '6px', background: '#FEF2F2', color: '#DC2626' }}><XCircle size={13} /> Falhou</span>
               )}
             </div>
-            <div className="p-5 space-y-4">
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <InputField label="Endpoint" value={form.wuzapiEndpoint} onChange={v => setForm({...form, wuzapiEndpoint: v})} placeholder="https://wuzapi.senhorcolchao.com" />
               <InputField label="Token" value={form.wuzapiToken} onChange={v => setForm({...form, wuzapiToken: v})} placeholder="Token WuzAPI" type="password" />
               <InputField label="Instance ID" value={form.wuzapiInstanceId} onChange={v => setForm({...form, wuzapiInstanceId: v})} placeholder="default" />
-              <button
-                onClick={testWuzapi}
-                className="px-4 py-2 rounded-lg border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
-              >
-                Testar Conexão
-              </button>
+              
+              <div style={{ paddingTop: '8px' }}>
+                <button
+                  onClick={testWuzapi}
+                  style={btnOutlineSmall}
+                  onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#F9FAFB')}
+                  onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#fff')}
+                >
+                  Testar Conexão
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -154,34 +208,43 @@ export default function SettingsPage() {
 
       {/* Agendamento */}
       {activeTab === 'schedule' && (
-        <div
-          className="bg-white rounded-xl border border-gray-200"
-          style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)' }}
-        >
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1F2937' }}>Horário de Funcionamento</h3>
+        <div style={cardStyle}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid #F3F4F6' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1F2937', margin: 0 }}>Horário de Funcionamento</h3>
           </div>
-          <div className="p-5 space-y-5">
-            <div className="grid grid-cols-2 gap-4">
+          <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '16px' }}>
               <InputField label="Início" value={form.workingHoursStart} onChange={v => setForm({...form, workingHoursStart: v})} type="time" />
               <InputField label="Fim" value={form.workingHoursEnd} onChange={v => setForm({...form, workingHoursEnd: v})} type="time" />
             </div>
             <div>
-              <label className="block text-xs font-medium mb-2.5" style={{ color: '#374151' }}>Dias de funcionamento</label>
-              <div className="flex gap-2 flex-wrap">
-                {days.map(d => (
-                  <button
-                    key={d.v}
-                    onClick={() => toggleDay(d.v)}
-                    className={`w-10 h-10 rounded-lg text-xs font-semibold transition-all ${
-                      form.workingDays.includes(d.v)
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                    }`}
-                  >
-                    {d.l}
-                  </button>
-                ))}
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '8px' }}>Dias de funcionamento</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {days.map(d => {
+                  const isSelected = form.workingDays.includes(d.v);
+                  return (
+                    <button
+                      key={d.v}
+                      onClick={() => toggleDay(d.v)}
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        border: 'none',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                        backgroundColor: isSelected ? '#3B82F6' : '#F3F4F6',
+                        color: isSelected ? '#fff' : '#6B7280',
+                      }}
+                      onMouseOver={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = '#E5E7EB'; }}
+                      onMouseOut={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = '#F3F4F6'; }}
+                    >
+                      {d.l}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -190,39 +253,34 @@ export default function SettingsPage() {
 
       {/* Follow-up */}
       {activeTab === 'followup' && (
-        <div
-          className="bg-white rounded-xl border border-gray-200"
-          style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)' }}
-        >
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1F2937' }}>Parâmetros de Follow-up</h3>
+        <div style={cardStyle}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid #F3F4F6' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1F2937', margin: 0 }}>Parâmetros de Follow-up</h3>
           </div>
-          <div className="p-5">
-            <div className="grid grid-cols-2 gap-4">
+          <div style={{ padding: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '16px' }}>
               <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: '#374151' }}>Intervalo entre tentativas (dias)</label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '8px' }}>Intervalo entre tentativas (dias)</label>
                 <input
                   type="number"
                   min={1}
                   max={30}
                   value={form.defaultFollowUpIntervalDays}
                   onChange={e => setForm({...form, defaultFollowUpIntervalDays: parseInt(e.target.value) || 1})}
-                  className="w-full text-sm text-gray-700 transition-all"
-                  style={{ border: '1px solid #E5E7EB', borderRadius: '8px', padding: '10px 14px', outline: 'none' }}
+                  style={{ width: '100%', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '10px 14px', outline: 'none', fontSize: '14px', color: '#374151', boxSizing: 'border-box', transition: 'all 0.15s' }}
                   onFocus={e => { e.target.style.borderColor = '#3B82F6'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.1)'; }}
                   onBlur={e => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: '#374151' }}>Máximo de tentativas</label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '8px' }}>Máximo de tentativas</label>
                 <input
                   type="number"
                   min={1}
                   max={20}
                   value={form.maxFollowUpAttempts}
                   onChange={e => setForm({...form, maxFollowUpAttempts: parseInt(e.target.value) || 5})}
-                  className="w-full text-sm text-gray-700 transition-all"
-                  style={{ border: '1px solid #E5E7EB', borderRadius: '8px', padding: '10px 14px', outline: 'none' }}
+                  style={{ width: '100%', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '10px 14px', outline: 'none', fontSize: '14px', color: '#374151', boxSizing: 'border-box', transition: 'all 0.15s' }}
                   onFocus={e => { e.target.style.borderColor = '#3B82F6'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.1)'; }}
                   onBlur={e => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
                 />
@@ -233,29 +291,32 @@ export default function SettingsPage() {
       )}
 
       {/* Save */}
-      <button
-        onClick={saveSettings}
-        disabled={saving}
-        className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-medium text-sm disabled:opacity-50 transition-colors"
-      >
-        {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-        Salvar Configurações
-      </button>
+      <div>
+        <button
+          onClick={saveSettings}
+          disabled={saving}
+          style={btnPrimary(saving)}
+          onMouseOver={(e) => { if (!saving) e.currentTarget.style.backgroundColor = '#2563EB'; }}
+          onMouseOut={(e) => { if (!saving) e.currentTarget.style.backgroundColor = '#3B82F6'; }}
+        >
+          {saving ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={18} />}
+          Salvar Configurações
+        </button>
+      </div>
     </div>
   );
 }
 
 function InputField({ label, value, onChange, placeholder, type = 'text' }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) {
   return (
-    <div>
-      <label className="block text-xs font-medium mb-1.5" style={{ color: '#374151' }}>{label}</label>
+    <div style={{ width: '100%' }}>
+      <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '8px' }}>{label}</label>
       <input
         type={type}
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full text-sm text-gray-700 transition-all"
-        style={{ border: '1px solid #E5E7EB', borderRadius: '8px', padding: '10px 14px', outline: 'none' }}
+        style={{ width: '100%', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '10px 14px', outline: 'none', fontSize: '14px', color: '#374151', boxSizing: 'border-box', transition: 'all 0.15s' }}
         onFocus={e => { e.target.style.borderColor = '#3B82F6'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.1)'; }}
         onBlur={e => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
       />

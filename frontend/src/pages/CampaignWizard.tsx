@@ -133,7 +133,7 @@ export default function CampaignWizard() {
 
   if (loading) {
     return (
-      <div style={{ padding: '24px', backgroundColor: '#F9FAFB', minHeight: '100%' }}>
+      <div style={{ minHeight: '100%' }}>
         <div
           className="animate-pulse"
           style={{ height: '256px', backgroundColor: '#E5E7EB', borderRadius: '12px' }}
@@ -171,7 +171,7 @@ export default function CampaignWizard() {
   };
 
   return (
-    <div style={{ padding: '24px', backgroundColor: '#F9FAFB', minHeight: '100%' }}>
+    <div style={{ minHeight: '100%' }}>
       <div style={{ maxWidth: '896px', margin: '0 auto' }} className="space-y-6 pb-16">
 
         {/* Header */}

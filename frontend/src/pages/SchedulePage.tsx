@@ -203,79 +203,85 @@ export default function SchedulePage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in" style={{ background: '#F9FAFB', minHeight: '100%' }}>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '22px', fontWeight: 600, color: '#1F2937' }}>Agendamentos</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Gerencie mensagens programadas</p>
+          <h1 style={{ fontSize: '22px', fontWeight: 600, color: '#1F2937', margin: 0 }}>Agendamentos</h1>
+          <p style={{ fontSize: '13px', color: '#6B7280', marginTop: '6px' }}>Gerencie mensagens programadas</p>
         </div>
-        <div className="flex gap-2">
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           {/* View mode toggle group */}
-          <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-            <button
-              onClick={() => setViewMode('LIST')}
-              className={`p-2.5 transition-colors flex items-center gap-1.5 text-sm font-medium px-3 ${
-                viewMode === 'LIST'
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-              title="Lista"
-            >
-              <List size={16} />
-              <span className="hidden sm:inline">Lista</span>
-            </button>
-            <div className="w-px h-8 bg-gray-200" />
-            <button
-              onClick={() => setViewMode('GRID')}
-              className={`p-2.5 transition-colors flex items-center gap-1.5 text-sm font-medium px-3 ${
-                viewMode === 'GRID'
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-              title="Grid"
-            >
-              <LayoutGrid size={16} />
-              <span className="hidden sm:inline">Grid</span>
-            </button>
-            <div className="w-px h-8 bg-gray-200" />
-            <button
-              onClick={() => setViewMode('CALENDAR')}
-              className={`p-2.5 transition-colors flex items-center gap-1.5 text-sm font-medium px-3 ${
-                viewMode === 'CALENDAR'
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-              title="Calendário"
-            >
-              <Calendar size={16} />
-              <span className="hidden sm:inline">Calendário</span>
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #E5E7EB', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+            {[
+              { mode: 'LIST' as const, icon: <List size={16} />, label: 'Lista' },
+              { mode: 'GRID' as const, icon: <LayoutGrid size={16} />, label: 'Grid' },
+              { mode: 'CALENDAR' as const, icon: <Calendar size={16} />, label: 'Calendário' },
+            ].map((item, i) => (
+              <div key={item.mode} style={{ display: 'flex', alignItems: 'center' }}>
+                {i > 0 && <div style={{ width: '1px', height: '32px', backgroundColor: '#E5E7EB' }} />}
+                <button
+                  onClick={() => setViewMode(item.mode)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '10px 14px',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: viewMode === item.mode ? '#EFF6FF' : 'transparent',
+                    color: viewMode === item.mode ? '#2563EB' : '#6B7280',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {item.icon}
+                  {item.label}
+                </button>
+              </div>
+            ))}
           </div>
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors font-medium text-sm">
+          <button
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 20px',
+              backgroundColor: '#3B82F6',
+              color: '#fff',
+              borderRadius: '8px',
+              border: 'none',
+              fontSize: '14px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+            }}
+          >
             <Plus size={16} />
-            <span className="hidden sm:inline">Novo</span>
+            Novo
           </button>
         </div>
       </div>
 
       {/* Stats cards */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl border border-gray-200 p-5" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)' }}>
-            <p className="text-sm text-gray-500">Pendentes</p>
-            <p className="text-2xl font-bold mt-1" style={{ color: '#B45309' }}>{stats.stats.pending}</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #E5E7EB', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)' }}>
+            <p style={{ fontSize: '14px', color: '#6B7280', margin: 0 }}>Pendentes</p>
+            <p style={{ fontSize: '24px', fontWeight: 700, color: '#B45309', margin: '8px 0 0' }}>{stats?.stats?.pending ?? 0}</p>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-5" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)' }}>
-            <p className="text-sm text-gray-500">Enviados</p>
-            <p className="text-2xl font-bold mt-1 text-blue-500">{stats.stats.sent}</p>
+          <div style={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #E5E7EB', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)' }}>
+            <p style={{ fontSize: '14px', color: '#6B7280', margin: 0 }}>Enviados</p>
+            <p style={{ fontSize: '24px', fontWeight: 700, color: '#3B82F6', margin: '8px 0 0' }}>{stats?.stats?.sent ?? 0}</p>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-5" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)' }}>
-            <p className="text-sm text-gray-500">Cancelados</p>
-            <p className="text-2xl font-bold mt-1 text-gray-400">{stats.stats.cancelled}</p>
+          <div style={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #E5E7EB', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)' }}>
+            <p style={{ fontSize: '14px', color: '#6B7280', margin: 0 }}>Cancelados</p>
+            <p style={{ fontSize: '24px', fontWeight: 700, color: '#9CA3AF', margin: '8px 0 0' }}>{stats?.stats?.cancelled ?? 0}</p>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-5" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)' }}>
-            <p className="text-sm text-gray-500">Total Geral</p>
-            <p className="text-2xl font-bold mt-1 text-blue-500">{stats.stats.total}</p>
+          <div style={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #E5E7EB', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)' }}>
+            <p style={{ fontSize: '14px', color: '#6B7280', margin: 0 }}>Total Geral</p>
+            <p style={{ fontSize: '24px', fontWeight: 700, color: '#3B82F6', margin: '8px 0 0' }}>{stats?.stats?.total ?? 0}</p>
           </div>
         </div>
       )}

@@ -1,15 +1,57 @@
 import { useEffect, useState } from 'react';
 import { templatesApi } from '../services/api';
-import { Plus, FileText, Copy, Trash2, Eye, Edit3, X } from 'lucide-react';
+import { Plus, FileText, Copy, Trash2, Eye, Edit3, X, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+// ============================================
+// Style Helpers
+// ============================================
+const cardStyle: React.CSSProperties = {
+  backgroundColor: '#fff',
+  border: '1px solid #E5E7EB',
+  borderRadius: '12px',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)',
+  overflow: 'hidden',
+};
+
+const btnPrimary = (disabled?: boolean): React.CSSProperties => ({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '8px',
+  padding: '10px 24px',
+  borderRadius: '8px',
+  border: 'none',
+  backgroundColor: disabled ? '#BFDBFE' : '#3B82F6',
+  color: '#fff',
+  fontSize: '14px',
+  fontWeight: 500,
+  cursor: disabled ? 'not-allowed' : 'pointer',
+  transition: 'background-color 0.15s',
+});
+
+const btnOutline: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '10px 20px',
+  borderRadius: '8px',
+  border: '1px solid #E5E7EB',
+  backgroundColor: '#fff',
+  fontSize: '14px',
+  fontWeight: 500,
+  color: '#374151',
+  cursor: 'pointer',
+  transition: 'background-color 0.15s',
+};
+
 export default function TemplatesPage() {
+  const [view, setView] = useState<'manage' | 'form'>('manage');
   const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', content: '', type: 'FOLLOW_UP' });
+  const [form, setForm] = useState({ name: '', content: '', type: 'FOLLOW_UP', order: 0 });
 
   useEffect(() => { loadTemplates(); }, []);
 
@@ -23,7 +65,10 @@ export default function TemplatesPage() {
     try {
       if (editing) { await templatesApi.update(editing.id, form); toast.success('Template atualizado!'); }
       else { await templatesApi.create(form); toast.success('Template criado!'); }
-      setShowModal(false); setEditing(null); setForm({ name: '', content: '', type: 'FOLLOW_UP' }); loadTemplates();
+      setView('manage');
+      setEditing(null);
+      setForm({ name: '', content: '', type: 'FOLLOW_UP', order: 0 });
+      loadTemplates();
     } catch { toast.error('Erro ao salvar template'); }
   };
 
@@ -43,105 +88,261 @@ export default function TemplatesPage() {
     catch { toast.error('Erro ao gerar preview'); }
   };
 
+  const openNew = () => {
+    setEditing(null);
+    setForm({ name: '', content: '', type: 'FOLLOW_UP', order: 0 });
+    setView('form');
+  };
+
   const openEdit = (t: any) => {
     setEditing(t);
-    setForm({ name: t.name, content: t.content, type: t.type });
-    setShowModal(true);
+    setForm({ name: t.name, content: t.content, type: t.type, order: t.order || 0 });
+    setView('form');
   };
 
   const variables = ['nome', 'produto', 'vendedor', 'empresa'];
 
+  if (view === 'form') {
+    return (
+      <div style={{ minHeight: '100%' }}>
+        <div style={{ maxWidth: '896px', margin: '0 auto' }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+            <button
+              onClick={() => setView('manage')}
+              style={{
+                padding: '8px',
+                borderRadius: '8px',
+                border: '1px solid #E5E7EB',
+                backgroundColor: '#fff',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                color: '#374151',
+              }}
+              onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#F9FAFB')}
+              onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#fff')}
+            >
+              <ArrowLeft size={20} strokeWidth={1.75} />
+            </button>
+            <div>
+              <h1 style={{ fontSize: '22px', fontWeight: 600, color: '#1F2937', margin: 0 }}>
+                {editing ? 'Editar Template' : 'Novo Template'}
+              </h1>
+              <p style={{ fontSize: '13px', color: '#6B7280', marginTop: '2px', margin: '2px 0 0' }}>
+                Preencha as informações abaixo para configurar a mensagem
+              </p>
+            </div>
+          </div>
+
+          <div style={{ ...cardStyle, padding: '24px 32px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Nome</label>
+                <input
+                  value={form.name}
+                  onChange={e => setForm({ ...form, name: e.target.value })}
+                  placeholder="Nome do template"
+                  style={{ width: '100%', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '10px 14px', outline: 'none', fontSize: '14px', color: '#1F2937', transition: 'all 0.15s', boxSizing: 'border-box' }}
+                  onFocus={e => { e.currentTarget.style.borderColor = '#3B82F6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.1)'; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = 'none'; }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Tipo</label>
+                <select
+                  value={form.type}
+                  onChange={e => setForm({ ...form, type: e.target.value })}
+                  style={{ width: '100%', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '10px 14px', outline: 'none', fontSize: '14px', color: '#1F2937', backgroundColor: '#fff', appearance: 'none', boxSizing: 'border-box' }}
+                >
+                  <option value="FOLLOW_UP">Follow-up</option>
+                  <option value="CAMPAIGN">Campanha</option>
+                </select>
+              </div>
+
+              {form.type === 'FOLLOW_UP' && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Ordem na sequência</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={form.order}
+                    onChange={e => setForm({ ...form, order: parseInt(e.target.value) || 0 })}
+                    placeholder="0 = primeira mensagem"
+                    style={{ width: '100%', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '10px 14px', outline: 'none', fontSize: '14px', color: '#1F2937', transition: 'all 0.15s', boxSizing: 'border-box' }}
+                    onFocus={e => { e.currentTarget.style.borderColor = '#3B82F6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.1)'; }}
+                    onBlur={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = 'none'; }}
+                  />
+                  <p style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '4px', margin: '4px 0 0' }}>
+                    Define a posição deste template na sequência de follow-up (0 = primeiro)
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Conteúdo</label>
+                <textarea
+                  value={form.content}
+                  onChange={e => setForm({ ...form, content: e.target.value })}
+                  placeholder="Olá {{nome}}, tudo bem? ..."
+                  style={{ width: '100%', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '12px 14px', outline: 'none', fontSize: '14px', color: '#1F2937', minHeight: '150px', resize: 'vertical', fontFamily: 'monospace', transition: 'all 0.15s', boxSizing: 'border-box' }}
+                  onFocus={e => { e.currentTarget.style.borderColor = '#3B82F6'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.1)'; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = 'none'; }}
+                />
+                <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
+                  {variables.map(v => (
+                    <button
+                      key={v}
+                      onClick={() => setForm({ ...form, content: form.content + `{{${v}}}` })}
+                      style={{ padding: '6px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 500, color: '#2563EB', backgroundColor: '#EFF6FF', border: '1px solid transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.15s' }}
+                      onMouseOver={e => e.currentTarget.style.backgroundColor = '#DBEAFE'}
+                      onMouseOut={e => e.currentTarget.style.backgroundColor = '#EFF6FF'}
+                    >
+                      + {`{{${v}}}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Footer */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px', paddingTop: '24px', marginTop: '24px', borderTop: '1px solid #F3F4F6' }}>
+              <button
+                onClick={() => setView('manage')}
+                style={btnOutline}
+                onMouseOver={e => e.currentTarget.style.backgroundColor = '#F9FAFB'}
+                onMouseOut={e => e.currentTarget.style.backgroundColor = '#fff'}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={saveTemplate}
+                disabled={!form.name || !form.content}
+                style={btnPrimary(!form.name || !form.content)}
+                onMouseOver={e => { if (form.name && form.content) e.currentTarget.style.backgroundColor = '#2563EB'; }}
+                onMouseOut={e => { if (form.name && form.content) e.currentTarget.style.backgroundColor = '#3B82F6'; }}
+              >
+                Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div style={{ minHeight: '100%', paddingBottom: '24px' }}>
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ fontSize: '22px', fontWeight: 600, color: '#1F2937' }}>Templates</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Modelos de mensagens para follow-up e campanhas</p>
+          <h1 style={{ fontSize: '22px', fontWeight: 600, color: '#1F2937', margin: 0 }}>Templates</h1>
+          <p style={{ fontSize: '14px', color: '#6B7280', marginTop: '2px', margin: '2px 0 0' }}>Modelos de mensagens para follow-up e campanhas</p>
         </div>
         <button
-          onClick={() => { setEditing(null); setForm({ name: '', content: '', type: 'FOLLOW_UP' }); setShowModal(true); }}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition-colors"
+          onClick={openNew}
+          style={btnPrimary()}
+          onMouseOver={e => e.currentTarget.style.backgroundColor = '#2563EB'}
+          onMouseOut={e => e.currentTarget.style.backgroundColor = '#3B82F6'}
         >
-          <Plus size={16} />
+          <Plus size={16} strokeWidth={2.5} />
           Novo Template
         </button>
       </div>
 
       {/* Templates list */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '16px' }}>
           {[1, 2, 3, 4].map(i => (
-            <div key={i} className="h-36 rounded-xl bg-gray-100 animate-pulse" />
+            <div key={i} style={{ ...cardStyle, height: '144px', backgroundColor: '#F9FAFB', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
           ))}
         </div>
       ) : templates.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl border border-gray-200" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)' }}>
-          <FileText size={40} className="mx-auto text-gray-300 mb-3" />
-          <h3 className="text-base font-semibold text-gray-800 mb-1">Nenhum template</h3>
-          <p className="text-sm text-gray-500">Crie templates de mensagem para usar no follow-up</p>
+        <div style={{ ...cardStyle, textAlign: 'center', padding: '60px 20px' }}>
+          <FileText size={48} style={{ color: '#D1D5DB', margin: '0 auto 16px' }} />
+          <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#1F2937', margin: '0 0 4px' }}>Nenhum template</h3>
+          <p style={{ fontSize: '14px', color: '#6B7280', margin: 0 }}>Crie templates de mensagem para usar no follow-up ou campanhas</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '16px' }}>
           {templates.map(t => (
             <div
               key={t.id}
-              className="bg-white rounded-xl border border-gray-200 p-5 hover:border-blue-200 transition-colors"
-              style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)' }}
+              style={{ ...cardStyle, padding: '20px', display: 'flex', flexDirection: 'column', transition: 'border-color 0.2s', borderColor: '#E5E7EB' }}
+              onMouseOver={e => e.currentTarget.style.borderColor = '#BFDBFE'}
+              onMouseOut={e => e.currentTarget.style.borderColor = '#E5E7EB'}
             >
-              <div className="flex items-start justify-between mb-3">
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-800">{t.name}</h3>
-                  <span
-                    className="text-xs font-medium px-2 py-0.5 rounded-md mt-1.5 inline-block"
-                    style={
-                      t.type === 'FOLLOW_UP'
-                        ? { background: '#EFF6FF', color: '#2563EB' }
-                        : { background: '#F0FDFA', color: '#0F766E' }
-                    }
-                  >
-                    {t.type === 'FOLLOW_UP' ? 'Follow-up' : 'Campanha'}
-                  </span>
+                  <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1F2937', margin: 0 }}>{t.name}</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                    <span
+                      style={{
+                        fontSize: '11px', fontWeight: 600, padding: '4px 8px', borderRadius: '6px',
+                        ...(t.type === 'FOLLOW_UP' ? { backgroundColor: '#EFF6FF', color: '#2563EB' } : { backgroundColor: '#F0FDFA', color: '#14B8A6' })
+                      }}
+                    >
+                      {t.type === 'FOLLOW_UP' ? 'Follow-up' : 'Campanha'}
+                    </span>
+                    {t.type === 'FOLLOW_UP' && t.order !== undefined && (
+                      <span
+                        style={{ fontSize: '11px', fontWeight: 700, padding: '4px 8px', borderRadius: '6px', backgroundColor: '#F3E8FF', color: '#7C3AED' }}
+                      >
+                        #{t.order + 1}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex gap-0.5">
+                <div style={{ display: 'flex', gap: '4px' }}>
                   <button
                     onClick={() => showPreview(t.id)}
-                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                    style={{ padding: '6px', borderRadius: '8px', border: 'none', backgroundColor: 'transparent', color: '#9CA3AF', cursor: 'pointer', transition: 'all 0.15s' }}
+                    onMouseOver={e => { e.currentTarget.style.backgroundColor = '#F3F4F6'; e.currentTarget.style.color = '#4B5563'; }}
+                    onMouseOut={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#9CA3AF'; }}
                     title="Preview"
                   >
-                    <Eye size={14} />
+                    <Eye size={16} />
                   </button>
                   <button
                     onClick={() => openEdit(t)}
-                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                    style={{ padding: '6px', borderRadius: '8px', border: 'none', backgroundColor: 'transparent', color: '#9CA3AF', cursor: 'pointer', transition: 'all 0.15s' }}
+                    onMouseOver={e => { e.currentTarget.style.backgroundColor = '#F3F4F6'; e.currentTarget.style.color = '#4B5563'; }}
+                    onMouseOut={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#9CA3AF'; }}
                     title="Editar"
                   >
-                    <Edit3 size={14} />
+                    <Edit3 size={16} />
                   </button>
                   <button
                     onClick={() => duplicateTemplate(t.id)}
-                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                    style={{ padding: '6px', borderRadius: '8px', border: 'none', backgroundColor: 'transparent', color: '#9CA3AF', cursor: 'pointer', transition: 'all 0.15s' }}
+                    onMouseOver={e => { e.currentTarget.style.backgroundColor = '#F3F4F6'; e.currentTarget.style.color = '#4B5563'; }}
+                    onMouseOut={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#9CA3AF'; }}
                     title="Duplicar"
                   >
-                    <Copy size={14} />
+                    <Copy size={16} />
                   </button>
                   <button
                     onClick={() => deleteTemplate(t.id)}
-                    className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                    style={{ padding: '6px', borderRadius: '8px', border: 'none', backgroundColor: 'transparent', color: '#9CA3AF', cursor: 'pointer', transition: 'all 0.15s' }}
+                    onMouseOver={e => { e.currentTarget.style.backgroundColor = '#FEF2F2'; e.currentTarget.style.color = '#DC2626'; }}
+                    onMouseOut={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#9CA3AF'; }}
                     title="Remover"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={16} />
                   </button>
                 </div>
               </div>
-              <p className="text-xs text-gray-500 whitespace-pre-wrap line-clamp-4 leading-5">{t.content}</p>
+              <p style={{ fontSize: '13px', color: '#6B7280', margin: 0, paddingRight: '8px', lineHeight: '1.5', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', whiteSpace: 'pre-wrap' }}>
+                {t.content}
+              </p>
               {(t.variables as string[])?.length > 0 && (
-                <div className="flex gap-1.5 mt-3 flex-wrap">
+                <div style={{ display: 'flex', gap: '6px', marginTop: '16px', flexWrap: 'wrap', paddingTop: '16px', borderTop: '1px solid #F3F4F6' }}>
                   {(t.variables as string[]).map((v: string) => (
                     <span
                       key={v}
-                      className="text-[10px] px-2 py-0.5 rounded font-mono font-medium"
-                      style={{ background: '#EFF6FF', color: '#2563EB' }}
+                      style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', backgroundColor: '#F3F4F6', color: '#4B5563', fontFamily: 'monospace', fontWeight: 500 }}
                     >
                       {`{{${v}}}`}
                     </span>
@@ -153,135 +354,28 @@ export default function TemplatesPage() {
         </div>
       )}
 
-      {/* Create/Edit Modal */}
-      {showModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.4)' }}
-          onClick={() => setShowModal(false)}
-        >
-          <div
-            className="bg-white rounded-xl p-6 w-full max-w-lg animate-fade-in"
-            style={{ boxShadow: '0 20px 40px rgba(0,0,0,0.15)', borderRadius: '12px' }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-5">
-              <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1F2937' }}>
-                {editing ? 'Editar Template' : 'Novo Template'}
-              </h2>
-              <button
-                onClick={() => setShowModal(false)}
-                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: '#374151' }}>Nome</label>
-                <input
-                  value={form.name}
-                  onChange={e => setForm({ ...form, name: e.target.value })}
-                  className="w-full text-sm text-gray-700 transition-all"
-                  placeholder="Nome do template"
-                  style={{
-                    border: '1px solid #E5E7EB',
-                    borderRadius: '8px',
-                    padding: '10px 14px',
-                    outline: 'none',
-                  }}
-                  onFocus={e => { e.target.style.borderColor = '#3B82F6'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.1)'; }}
-                  onBlur={e => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: '#374151' }}>Tipo</label>
-                <select
-                  value={form.type}
-                  onChange={e => setForm({ ...form, type: e.target.value })}
-                  className="w-full text-sm text-gray-700 bg-white"
-                  style={{ border: '1px solid #E5E7EB', borderRadius: '8px', padding: '10px 14px', outline: 'none' }}
-                >
-                  <option value="FOLLOW_UP">Follow-up</option>
-                  <option value="CAMPAIGN">Campanha</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: '#374151' }}>Conteúdo</label>
-                <textarea
-                  value={form.content}
-                  onChange={e => setForm({ ...form, content: e.target.value })}
-                  className="w-full text-sm text-gray-700 font-mono resize-none transition-all"
-                  placeholder="Olá {{nome}}, tudo bem? ..."
-                  style={{
-                    border: '1px solid #E5E7EB',
-                    borderRadius: '8px',
-                    padding: '10px 14px',
-                    outline: 'none',
-                    minHeight: '150px',
-                  }}
-                  onFocus={e => { e.target.style.borderColor = '#3B82F6'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.1)'; }}
-                  onBlur={e => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
-                />
-                {/* Variable insertion pills */}
-                <div className="flex gap-2 mt-2 flex-wrap">
-                  {variables.map(v => (
-                    <button
-                      key={v}
-                      onClick={() => setForm({ ...form, content: form.content + `{{${v}}}` })}
-                      className="text-xs px-2.5 py-1 rounded font-mono font-medium transition-colors hover:opacity-80"
-                      style={{ background: '#EFF6FF', color: '#2563EB' }}
-                    >
-                      {`+ {{${v}}}`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={saveTemplate}
-                  disabled={!form.name || !form.content}
-                  className="flex-1 py-2.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium disabled:opacity-50 transition-colors"
-                >
-                  Salvar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Preview Modal */}
+      {/* Preview Modal - Mantemos pois é apenas leitura */}
       {preview !== null && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.4)' }}
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)' }}
           onClick={() => setPreview(null)}
         >
           <div
-            className="bg-white rounded-xl p-6 w-full max-w-md animate-fade-in"
-            style={{ boxShadow: '0 20px 40px rgba(0,0,0,0.15)', borderRadius: '12px' }}
+            style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '448px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-4">
-              <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1F2937' }}>Preview</h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1F2937', margin: 0 }}>Preview</h2>
               <button
                 onClick={() => setPreview(null)}
-                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors"
+                style={{ padding: '6px', borderRadius: '8px', border: 'none', backgroundColor: '#F3F4F6', color: '#6B7280', cursor: 'pointer', transition: 'all 0.15s' }}
+                onMouseOver={e => e.currentTarget.style.backgroundColor = '#E5E7EB'}
+                onMouseOut={e => e.currentTarget.style.backgroundColor = '#F3F4F6'}
               >
                 <X size={18} />
               </button>
             </div>
-            <div
-              className="text-sm whitespace-pre-wrap leading-6 text-gray-700 rounded-lg p-4"
-              style={{ background: '#F0FDF4', border: '1px solid #DCFCE7' }}
-            >
+            <div style={{ fontSize: '14px', lineHeight: '1.6', whiteSpace: 'pre-wrap', color: '#374151', padding: '16px', borderRadius: '12px', backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0' }}>
               {preview}
             </div>
           </div>

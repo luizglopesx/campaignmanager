@@ -89,7 +89,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6" style={{ padding: '24px', backgroundColor: '#F9FAFB', minHeight: '100%' }}>
+      <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', gap: '24px' }}>
         <div>
           <SkeletonPulse className="h-7 w-44 mb-2" />
           <SkeletonPulse className="h-4 w-64" />
@@ -125,8 +125,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div style={{ padding: '24px', backgroundColor: '#F9FAFB', minHeight: '100%' }}>
-      <div className="space-y-6">
+    <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', gap: '24px' }}>
         {/* Header */}
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: 600, color: '#1F2937', margin: 0 }}>Dashboard</h1>
@@ -418,7 +417,6 @@ export default function DashboardPage() {
             <p style={{ fontSize: '13px', color: '#6B7280', marginTop: '4px' }}>de campanhas entregues</p>
           </div>
         </div>
-      </div>
     </div>
   );
 }

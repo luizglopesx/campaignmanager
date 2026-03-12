@@ -50,6 +50,19 @@ enum ScheduleStatus {
   FAILED
 }
 
+enum BroadcastStatus {
+  DRAFT
+  RUNNING
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum BroadcastType {
+  MESSAGE
+  STATUS
+}
+
 enum TemplateType {
   FOLLOW_UP
   CAMPAIGN
@@ -70,6 +83,7 @@ model User {
 
   templates         MessageTemplate[]
   campaigns         Campaign[]
+  broadcasts        Broadcast[]
   scheduledMessages ScheduledMessage[]
   auditLogs         AuditLog[]
 
@@ -80,7 +94,8 @@ model Settings {
   id                        String   @id @default(uuid())
   chatwootUrl               String?  @map("chatwoot_url")
   chatwootApiToken          String?  @map("chatwoot_api_token")
-  chatwootAccountId         String?  @map("chatwoot_account_id")
+  chatwootBotToken          String?  @map("chatwoot_bot_token")
+  chatwootAccountId         String?  @default("1") @map("chatwoot_account_id")
   wuzapiEndpoint            String?  @map("wuzapi_endpoint")
   wuzapiToken               String?  @map("wuzapi_token")
   wuzapiInstanceId          String?  @map("wuzapi_instance_id")
@@ -89,6 +104,7 @@ model Settings {
   workingDays               Json     @default("[1,2,3,4,5]") @map("working_days")
   defaultFollowUpIntervalDays Int    @default(1) @map("default_follow_up_interval_days")
   maxFollowUpAttempts       Int      @default(5) @map("max_follow_up_attempts")
+  followUpLabel             String?  @map("follow_up_label")
   createdAt                 DateTime @default(now()) @map("created_at")
   updatedAt                 DateTime @updatedAt @map("updated_at")
 
@@ -101,6 +117,7 @@ model MessageTemplate {
   content   String
   variables Json         @default("[]")
   type      TemplateType @default(FOLLOW_UP)
+  order     Int          @default(0)
   createdBy String       @map("created_by")
   createdAt DateTime     @default(now()) @map("created_at")
   updatedAt DateTime     @updatedAt @map("updated_at")
@@ -116,7 +133,12 @@ model Lead {
   chatwootContactId Int?           @map("chatwoot_contact_id")
   name              String
   phone             String
+  email             String?
+  attributes        Json           @default("{}")
+  tags              Json           @default("[]")
   currentStage      String?        @map("current_stage")
+  labelFilter       String?        @map("label_filter")
+  templateIds       Json           @default("[]") @map("template_ids")
   followUpStatus    FollowUpStatus @default(ACTIVE) @map("follow_up_status")
   followUpAttempts  Int            @default(0) @map("follow_up_attempts")
   lastMessageSentAt DateTime?      @map("last_message_sent_at")
@@ -224,4 +246,39 @@ model AuditLog {
   user User @relation(fields: [userId], references: [id])
 
   @@map("audit_logs")
+}
+
+model Broadcast {
+  id          String          @id @default(uuid())
+  name        String?
+  message     String?
+  mediaUrl    String?         @map("media_url")
+  mediaType   String?         @map("media_type")
+  type        BroadcastType   @default(MESSAGE)
+  status      BroadcastStatus @default(DRAFT)
+  labelFilter String          @map("label_filter")
+  createdBy   String          @map("created_by")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  user       User                 @relation(fields: [createdBy], references: [id])
+  recipients BroadcastRecipient[]
+
+  @@map("broadcasts")
+}
+
+model BroadcastRecipient {
+  id                     String        @id @default(uuid())
+  broadcastId            String        @map("broadcast_id")
+  chatwootContactId      Int?          @map("chatwoot_contact_id")
+  chatwootConversationId Int?          @map("chatwoot_conversation_id")
+  phone                  String?
+  name                   String?
+  status                 MessageStatus @default(PENDING)
+  sentAt                 DateTime?     @map("sent_at")
+  errorMessage           String?       @map("error_message")
+
+  broadcast Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+
+  @@map("broadcast_recipients")
 }

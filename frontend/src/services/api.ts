@@ -73,6 +73,12 @@ export const leadsApi = {
   updateStatus: (id: string, status: string) =>
     api.put(`/leads/${id}/status`, { followUpStatus: status }),
   stats: () => api.get('/leads/stats/overview'),
+  startByLabel: (data: { label: string; templateIds: string[] }) =>
+    api.post('/leads/start-followup-by-label', data),
+  bulkStatus: (status: 'PAUSED' | 'ACTIVE') =>
+    api.put('/leads/bulk-status', { status }),
+  triggerFollowUp: (id: string) =>
+    api.post(`/leads/${id}/trigger-followup`),
 };
 
 // ==========================================
@@ -100,6 +106,13 @@ export const uploadApi = {
     const formData = new FormData();
     formData.append('image', file);
     return api.post('/upload/image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  media: (file: File) => {
+    const formData = new FormData();
+    formData.append('media', file);
+    return api.post('/upload/media', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
@@ -133,6 +146,56 @@ export const metricsApi = {
 // ==========================================
 export const scheduleCalendarApi = {
   get: (month?: string) => api.get('/schedule/calendar', { params: month ? { month } : {} }),
+};
+
+// ==========================================
+// Broadcast
+// ==========================================
+export const broadcastApi = {
+  labels: () => api.get('/broadcast/labels'),
+  contactsByLabel: (label: string) => api.post('/broadcast/contacts-by-label', { label }),
+  list: () => api.get('/broadcast'),
+  get: (id: string) => api.get(`/broadcast/${id}`),
+  create: (data: { label: string; message?: string; mediaUrl?: string; mediaType?: string; name?: string }) =>
+    api.post('/broadcast', data),
+  progress: (id: string) => api.get(`/broadcast/${id}/progress`),
+  cancel: (id: string) => api.post(`/broadcast/${id}/cancel`),
+  delete: (id: string) => api.delete(`/broadcast/${id}`),
+  sendStatus: (data: { mediaUrl: string; caption?: string; mediaType?: string }) =>
+    api.post('/broadcast/send-status', data),
+};
+
+// ==========================================
+// Status (WhatsApp Status)
+// ==========================================
+export const statusApi = {
+  upload: (file: File) => {
+    const formData = new FormData();
+    formData.append('media', file);
+    return api.post('/status/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000, // 2min para processamento de vídeo
+    });
+  },
+  publish: (data: { mediaUrl: string; caption?: string; mediaType?: string }) =>
+    api.post('/status/publish', data),
+  history: () => api.get('/status/history'),
+};
+
+// ==========================================
+// Contacts
+// ==========================================
+export const contactsApi = {
+  list: (params?: any) => api.get('/contacts', { params }),
+  syncChatwoot: () => api.post('/contacts/sync-chatwoot'),
+  export: () => api.get('/contacts/export', { responseType: 'blob' }),
+  import: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/contacts/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
 
 export default api;

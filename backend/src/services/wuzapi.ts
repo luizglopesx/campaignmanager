@@ -197,6 +197,45 @@ export async function checkNumber(phone: string): Promise<{ exists: boolean; jid
   }
 }
 
+/**
+ * Posta uma imagem/vídeo no Status do WhatsApp via endpoints dedicados do Fzap
+ */
+export async function sendStatus(
+  mediaUrl: string,
+  caption?: string,
+  mediaType?: string
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const cfg = await getConfig();
+  const client = createClient(cfg);
+
+  try {
+    let res;
+
+    if (mediaType === 'video') {
+      res = await client.post('/status/send-video', {
+        Video: mediaUrl,
+        Caption: caption || '',
+      });
+    } else {
+      res = await client.post('/status/send-image', {
+        Image: mediaUrl,
+        Caption: caption || '',
+      });
+    }
+
+    return {
+      success: true,
+      messageId: res.data?.MessageID || res.data?.Id,
+    };
+  } catch (error: any) {
+    console.error('WuzAPI sendStatus error:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message,
+    };
+  }
+}
+
 export const wuzapiService = {
   checkStatus,
   sendText,
@@ -204,4 +243,5 @@ export const wuzapiService = {
   sendCarousel,
   sendDocument,
   checkNumber,
+  sendStatus,
 };

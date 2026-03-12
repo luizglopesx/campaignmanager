@@ -37,8 +37,7 @@ function StatusBadge({ status }: { status: string }) {
   const Icon = s.icon;
   return (
     <span
-      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium"
-      style={{ color: s.textColor, background: s.bgColor }}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 500, color: s.textColor, background: s.bgColor }}
     >
       <Icon size={12} />
       {s.label}
@@ -118,18 +117,30 @@ export default function HistoryPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '22px', fontWeight: 600, color: '#1F2937' }}>Histórico & Logs</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Registro de todas as mensagens enviadas e ações do sistema</p>
+          <h1 style={{ fontSize: '22px', fontWeight: 600, color: '#1F2937', margin: 0 }}>Histórico & Logs</h1>
+          <p style={{ fontSize: '13px', color: '#6B7280', marginTop: '6px' }}>Registro de todas as mensagens enviadas e ações do sistema</p>
         </div>
         {tab === 'messages' && (
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-lg transition-colors font-medium text-sm"
-            style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 16px',
+              backgroundColor: '#fff',
+              border: '1px solid #E5E7EB',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: 500,
+              color: '#374151',
+              cursor: 'pointer',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+            }}
           >
             <Download size={15} />
             Exportar CSV
@@ -138,28 +149,42 @@ export default function HistoryPage() {
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="flex">
+      <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #E5E7EB' }}>
+        <div style={{ display: 'flex' }}>
           <button
             onClick={() => setTab('messages')}
-            className={`flex items-center gap-2 text-sm font-medium transition-colors border-b-2 ${
-              tab === 'messages'
-                ? 'border-blue-500 text-blue-500'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-            style={{ padding: '12px 16px', fontSize: '14px' }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 16px',
+              fontSize: '14px',
+              fontWeight: 500,
+              border: 'none',
+              borderBottom: tab === 'messages' ? '2px solid #3B82F6' : '2px solid transparent',
+              color: tab === 'messages' ? '#3B82F6' : '#6B7280',
+              backgroundColor: 'transparent',
+              cursor: 'pointer',
+            }}
           >
             <History size={15} />
             Mensagens
           </button>
           <button
             onClick={() => setTab('audit')}
-            className={`flex items-center gap-2 text-sm font-medium transition-colors border-b-2 ${
-              tab === 'audit'
-                ? 'border-blue-500 text-blue-500'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-            style={{ padding: '12px 16px', fontSize: '14px' }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 16px',
+              fontSize: '14px',
+              fontWeight: 500,
+              border: 'none',
+              borderBottom: tab === 'audit' ? '2px solid #3B82F6' : '2px solid transparent',
+              color: tab === 'audit' ? '#3B82F6' : '#6B7280',
+              backgroundColor: 'transparent',
+              cursor: 'pointer',
+            }}
           >
             <Shield size={15} />
             Auditoria
@@ -169,26 +194,31 @@ export default function HistoryPage() {
 
       {/* Messages Tab */}
       {tab === 'messages' && (
-        <div className="space-y-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* Filters bar */}
           <div
-            className="bg-white rounded-xl border border-gray-200 p-4"
-            style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)' }}
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: '12px',
+              border: '1px solid #E5E7EB',
+              padding: '20px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)',
+            }}
           >
-            <div className="flex items-center gap-2 text-gray-400 text-xs mb-3">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9CA3AF', fontSize: '12px', marginBottom: '14px' }}>
               <Filter size={13} />
-              <span className="font-medium uppercase tracking-wider">Filtros</span>
+              <span style={{ fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Filtros</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '12px' }}>
               {/* Search */}
-              <div className="relative lg:col-span-2">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <div style={{ position: 'relative' }}>
+                <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
                 <input
                   type="text"
                   placeholder="Buscar por nome ou telefone..."
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                  style={{ ...inputStyle, paddingLeft: '36px', width: '100%' }}
+                  style={{ ...inputStyle, paddingLeft: '36px', width: '100%', boxSizing: 'border-box' }}
                 />
               </div>
 
@@ -196,7 +226,7 @@ export default function HistoryPage() {
               <select
                 value={msgType}
                 onChange={(e) => { setMsgType(e.target.value as MsgType); setPage(1); }}
-                style={inputStyle}
+                style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}
               >
                 <option value="all">Todos os tipos</option>
                 <option value="followup">Follow-up</option>
@@ -207,7 +237,7 @@ export default function HistoryPage() {
               <select
                 value={status}
                 onChange={(e) => { setStatus(e.target.value); setPage(1); }}
-                style={inputStyle}
+                style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}
               >
                 <option value="">Todos os status</option>
                 <option value="SENT">Enviado</option>
@@ -222,14 +252,14 @@ export default function HistoryPage() {
                 type="date"
                 value={dateFrom}
                 onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-                style={inputStyle}
+                style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}
                 title="Data início"
               />
             </div>
 
             {dateFrom && (
-              <div className="flex gap-2 items-center mt-3">
-                <span className="text-xs text-gray-400">até</span>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '14px' }}>
+                <span style={{ fontSize: '12px', color: '#9CA3AF' }}>até</span>
                 <input
                   type="date"
                   value={dateTo}
@@ -238,8 +268,7 @@ export default function HistoryPage() {
                 />
                 <button
                   onClick={() => { setDateFrom(''); setDateTo(''); setPage(1); }}
-                  className="text-xs font-medium transition-colors"
-                  style={{ color: '#DC2626' }}
+                  style={{ fontSize: '12px', fontWeight: 500, color: '#DC2626', border: 'none', backgroundColor: 'transparent', cursor: 'pointer' }}
                 >
                   Limpar datas
                 </button>
@@ -248,22 +277,30 @@ export default function HistoryPage() {
           </div>
 
           {/* Type quick filters */}
-          <div className="flex gap-2">
+          <div style={{ display: 'flex', gap: '10px' }}>
             {(['all', 'followup', 'campaign'] as MsgType[]).map((t) => (
               <button
                 key={t}
                 onClick={() => { setMsgType(t); setPage(1); }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  msgType === t
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white text-gray-500 hover:text-gray-700 border border-gray-200'
-                }`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  border: msgType === t ? 'none' : '1px solid #E5E7EB',
+                  backgroundColor: msgType === t ? '#3B82F6' : '#fff',
+                  color: msgType === t ? '#fff' : '#6B7280',
+                  cursor: 'pointer',
+                }}
               >
                 {t === 'followup' && <MessageSquare size={12} />}
                 {t === 'campaign' && <Megaphone size={12} />}
                 {t === 'all' ? 'Todos' : t === 'followup' ? 'Follow-up' : 'Campanhas'}
                 {msgPagination && t === msgType && (
-                  <span className="ml-1 opacity-70">{msgPagination.total}</span>
+                  <span style={{ marginLeft: '4px', opacity: 0.7 }}>{msgPagination.total}</span>
                 )}
               </button>
             ))}
@@ -271,29 +308,31 @@ export default function HistoryPage() {
 
           {/* Table */}
           <div
-            className="bg-white rounded-xl border border-gray-200 overflow-hidden"
-            style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)' }}
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: '12px',
+              border: '1px solid #E5E7EB',
+              overflow: 'hidden',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)',
+            }}
           >
             {msgLoading ? (
-              <div className="flex justify-center items-center py-16">
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '64px 0' }}>
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500" />
               </div>
             ) : !messagesData?.items?.length ? (
-              <div className="text-center py-16">
-                <History className="mx-auto h-10 w-10 text-gray-300 mb-3" />
-                <p className="text-gray-500 text-sm">Nenhuma mensagem encontrada</p>
+              <div style={{ textAlign: 'center', padding: '64px 16px' }}>
+                <History style={{ margin: '0 auto 12px', color: '#D1D5DB', width: '40px', height: '40px' }} />
+                <p style={{ color: '#6B7280', fontSize: '14px' }}>Nenhuma mensagem encontrada</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200">
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Destinatário</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Enviado em</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campanha / Template</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Erro</th>
+                    <tr style={{ backgroundColor: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
+                      {['Tipo', 'Destinatário', 'Status', 'Enviado em', 'Campanha / Template', 'Erro'].map((h) => (
+                        <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 500, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
@@ -304,49 +343,56 @@ export default function HistoryPage() {
                       const sentAt = item.sentAt;
                       const ref = isFollowup ? item.template?.name : item.campaign?.name;
 
+                      const tdStyle = { padding: '12px 16px' };
                       return (
-                        <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors last:border-b-0">
-                          <td className="px-4 py-3 whitespace-nowrap">
+                        <tr key={item.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                          <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
                             <span
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium"
-                              style={
-                                isFollowup
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '4px 10px',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                fontWeight: 500,
+                                ...(isFollowup
                                   ? { background: '#EFF6FF', color: '#2563EB' }
-                                  : { background: '#F5F3FF', color: '#7C3AED' }
-                              }
+                                  : { background: '#F5F3FF', color: '#7C3AED' }),
+                              }}
                             >
                               {isFollowup ? <MessageSquare size={11} /> : <Megaphone size={11} />}
                               {isFollowup ? 'Follow-up' : 'Campanha'}
                             </span>
                           </td>
-                          <td className="px-4 py-3">
+                          <td style={tdStyle}>
                             <div>
-                              <p className="text-sm text-gray-800 font-medium">{name || 'Desconhecido'}</p>
-                              <p className="text-xs text-gray-400">{phone}</p>
+                              <p style={{ fontSize: '14px', color: '#1F2937', fontWeight: 500, margin: 0 }}>{name || 'Desconhecido'}</p>
+                              <p style={{ fontSize: '12px', color: '#9CA3AF', margin: '2px 0 0' }}>{phone}</p>
                             </div>
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
+                          <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
                             <StatusBadge status={item.status} />
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <span className="text-sm text-gray-500">
+                          <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+                            <span style={{ fontSize: '14px', color: '#6B7280' }}>
                               {sentAt
                                 ? format(new Date(sentAt), "dd/MM/yy HH:mm", { locale: ptBR })
                                 : '—'}
                             </span>
                           </td>
-                          <td className="px-4 py-3">
-                            <span className="text-sm text-gray-500 truncate max-w-[160px] block">
+                          <td style={tdStyle}>
+                            <span style={{ fontSize: '14px', color: '#6B7280' }}>
                               {ref || '—'}
                             </span>
                           </td>
-                          <td className="px-4 py-3">
+                          <td style={tdStyle}>
                             {item.errorMessage ? (
-                              <span className="text-xs text-red-500 truncate max-w-[160px] block" title={item.errorMessage}>
+                              <span style={{ fontSize: '12px', color: '#EF4444' }} title={item.errorMessage}>
                                 {item.errorMessage}
                               </span>
                             ) : (
-                              <span className="text-gray-300 text-xs">—</span>
+                              <span style={{ color: '#D1D5DB', fontSize: '12px' }}>—</span>
                             )}
                           </td>
                         </tr>
@@ -406,7 +452,7 @@ export default function HistoryPage() {
 
       {/* Audit Tab */}
       {tab === 'audit' && (
-        <div className="space-y-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div className="relative w-full sm:w-80">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input

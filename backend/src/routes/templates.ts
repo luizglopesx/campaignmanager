@@ -10,6 +10,7 @@ const templateSchema = z.object({
   content: z.string().min(1, 'Conteúdo é obrigatório'),
   variables: z.array(z.string()).optional().default([]),
   type: z.enum(['FOLLOW_UP', 'CAMPAIGN']).optional().default('FOLLOW_UP'),
+  order: z.number().int().min(0).optional().default(0),
 });
 
 // GET /api/templates
@@ -21,7 +22,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response): Promise<v
     const templates = await prisma.messageTemplate.findMany({
       where,
       include: { user: { select: { name: true } } },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
     });
 
     res.json({ templates });
@@ -67,6 +68,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response): Promise<
         content: data.content,
         variables: extractedVars.length > 0 ? extractedVars : data.variables,
         type: data.type,
+        order: data.order,
         createdBy: req.user!.id,
       },
     });

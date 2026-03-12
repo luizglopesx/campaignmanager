@@ -21,6 +21,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response): Promise<v
         settings: {
           ...settings,
           chatwootApiToken: settings.chatwootApiToken ? '••••••••' : null,
+          chatwootBotToken: settings.chatwootBotToken ? '••••••••' : null,
           wuzapiToken: settings.wuzapiToken ? '••••••••' : null,
         },
       });
@@ -36,6 +37,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response): Promise<v
 const settingsSchema = z.object({
   chatwootUrl: z.string().url().optional().nullable(),
   chatwootApiToken: z.string().optional().nullable(),
+  chatwootBotToken: z.string().optional().nullable(),
   chatwootAccountId: z.string().optional().nullable(),
   wuzapiEndpoint: z.string().url().optional().nullable(),
   wuzapiToken: z.string().optional().nullable(),
@@ -64,6 +66,7 @@ router.put(
         // Não sobrescreve token se vier mascarado
         const updateData: any = { ...data };
         if (updateData.chatwootApiToken === '••••••••') delete updateData.chatwootApiToken;
+        if (updateData.chatwootBotToken === '••••••••') delete updateData.chatwootBotToken;
         if (updateData.wuzapiToken === '••••••••') delete updateData.wuzapiToken;
 
         settings = await prisma.settings.update({

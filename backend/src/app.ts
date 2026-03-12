@@ -14,6 +14,10 @@ import dashboardRoutes from './routes/dashboard';
 import scheduleRoutes from './routes/schedule';
 import historyRoutes from './routes/history';
 import metricsRoutes from './routes/metrics';
+import broadcastRoutes from './routes/broadcast';
+import statusRoutes from './routes/status';
+import contactRoutes from './routes/contacts';
+import webhookRoutes from './routes/webhook';
 
 const app = express();
 
@@ -46,6 +50,10 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/schedule', scheduleRoutes);
 app.use('/api/history', historyRoutes);
 app.use('/api/metrics', metricsRoutes);
+app.use('/api/broadcast', broadcastRoutes);
+app.use('/api/status', statusRoutes);
+app.use('/api/contacts', contactRoutes);
+app.use('/api/webhook', webhookRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({

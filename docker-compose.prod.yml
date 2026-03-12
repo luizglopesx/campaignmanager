@@ -1,0 +1,56 @@
+version: "3.8"
+
+services:
+  backend:
+    image: ghcr.io/luizglopesx/campaignmanager-backend:latest
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      DATABASE_URL: postgresql://campaign_user:${DB_PASSWORD}@postgres_postgres:5432/campaign_manager
+      REDIS_URL: redis://redis_redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGIN: https://campaign.senhorcolchao.com
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
+      SUPABASE_STORAGE_BUCKET: ${SUPABASE_STORAGE_BUCKET:-campaign-media}
+    networks:
+      - network_public
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+      update_config:
+        order: start-first
+        failure_action: rollback
+      resources:
+        limits:
+          memory: 1G
+
+  frontend:
+    image: ghcr.io/luizglopesx/campaignmanager-frontend:latest
+    networks:
+      - network_public
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      update_config:
+        order: start-first
+        failure_action: rollback
+      resources:
+        limits:
+          memory: 128M
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.campaign.rule=Host(`campaign.senhorcolchao.com`)"
+        - "traefik.http.routers.campaign.entrypoints=websecure"
+        - "traefik.http.routers.campaign.tls.certresolver=letsencryptresolver"
+        - "traefik.http.services.campaign.loadbalancer.server.port=80"
+        - "traefik.docker.network=network_public"
+
+networks:
+  network_public:
+    external: true

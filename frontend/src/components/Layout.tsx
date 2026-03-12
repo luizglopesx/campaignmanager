@@ -5,6 +5,8 @@ import {
   LayoutDashboard,
   MessageSquare,
   Megaphone,
+  Radio,
+  Smartphone,
   CalendarClock,
   FileText,
   Users,
@@ -24,6 +26,8 @@ const navSections = [
       { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
       { to: '/followup', icon: MessageSquare, label: 'Follow-up' },
       { to: '/campaigns', icon: Megaphone, label: 'Campanhas' },
+      { to: '/broadcast', icon: Radio, label: 'Broadcast' },
+      { to: '/status', icon: Smartphone, label: 'Status' },
       { to: '/schedule', icon: CalendarClock, label: 'Agendamentos' },
     ],
   },
@@ -273,7 +277,7 @@ export default function Layout() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
         {/* Header */}
         <header
           className="flex items-center px-6 gap-4 shrink-0"
@@ -302,7 +306,7 @@ export default function Layout() {
 
           {/* Online status indicator */}
           <div
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 shrink-0 whitespace-nowrap"
             style={{ fontSize: '13px', color: '#6B7280' }}
           >
             <div
@@ -314,8 +318,10 @@ export default function Layout() {
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-y-auto" style={{ padding: '24px' }}>
-          <Outlet />
+        <div className="flex-1 overflow-y-auto">
+          <div style={{ padding: '32px 40px', maxWidth: '1400px', margin: '0 auto' }}>
+            <Outlet />
+          </div>
         </div>
       </main>
     </div>

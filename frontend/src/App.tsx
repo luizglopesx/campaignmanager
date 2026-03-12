@@ -13,22 +13,15 @@ import SettingsPage from './pages/SettingsPage';
 import CampaignWizard from './pages/CampaignWizard';
 import HistoryPage from './pages/HistoryPage';
 import MetricsPage from './pages/MetricsPage';
-import { Users } from 'lucide-react';
+import BroadcastPage from './pages/BroadcastPage';
+import StatusPage from './pages/StatusPage';
+import ContactsPage from './pages/ContactsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
 });
 
-// Placeholder pages
-function PlaceholderPage({ title, icon: Icon }: { title: string; icon: any }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
-      <Icon size={48} className="text-surface-300 mb-4" />
-      <h2 className="text-xl font-bold text-text-primary mb-1">{title}</h2>
-      <p className="text-sm text-text-muted">Em breve disponível</p>
-    </div>
-  );
-}
+// Rotas de Autenticação e Layout principal
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { token, isLoading } = useAuth();
@@ -47,12 +40,14 @@ function AppRoutes() {
         <Route index element={<DashboardPage />} />
         <Route path="followup" element={<FollowUpPage />} />
         <Route path="campaigns" element={<CampaignsPage />} />
+        <Route path="broadcast" element={<BroadcastPage />} />
+        <Route path="status" element={<StatusPage />} />
         <Route path="campaigns/:id" element={<CampaignWizard />} />
         <Route path="schedule" element={<SchedulePage />} />
         <Route path="templates" element={<TemplatesPage />} />
         <Route path="history" element={<HistoryPage />} />
         <Route path="metrics" element={<MetricsPage />} />
-        <Route path="contacts" element={<PlaceholderPage title="Contatos" icon={Users} />} />
+        <Route path="contacts" element={<ContactsPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>

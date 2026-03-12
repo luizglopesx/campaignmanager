@@ -55,8 +55,7 @@ export default function CampaignsPage() {
   };
 
   return (
-    <div style={{ padding: '24px', backgroundColor: '#F9FAFB', minHeight: '100%' }}>
-      <div className="space-y-5">
+    <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', gap: '24px' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
@@ -423,7 +422,6 @@ export default function CampaignsPage() {
             })}
           </div>
         )}
-      </div>
     </div>
   );
 }

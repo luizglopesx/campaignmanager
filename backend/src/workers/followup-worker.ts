@@ -1,7 +1,7 @@
 import { Queue, Worker, Job } from 'bullmq';
 import IORedis from 'ioredis';
 import prisma from '../config/database';
-import { wuzapiService } from '../services/wuzapi';
+import { chatwootService } from '../services/chatwoot';
 import { config } from '../config';
 
 // Conexão Redis
@@ -97,26 +97,44 @@ async function processFollowUp(job: Job<FollowUpJobData>) {
     return { status: 'COMPLETED', reason: 'Máximo de tentativas atingido' };
   }
 
-  // Montar mensagem
+  // Montar mensagem — prioridade: customMessage > templateId > templateIds do lead > templates FOLLOW_UP > padrão
   let messageContent = customMessage || '';
+  let usedTemplateId = templateId || null;
 
   if (!messageContent && templateId) {
     const template = await prisma.messageTemplate.findUnique({ where: { id: templateId } });
     if (template) {
       messageContent = replaceVariables(template.content, lead);
+      usedTemplateId = template.id;
     }
   }
 
   if (!messageContent) {
-    // Tentar usar um template padrão baseado na tentativa
+    // Usar templateIds do lead (sequência configurada pelo usuário)
+    const leadTemplateIds = (lead.templateIds as string[]) || [];
+
+    if (leadTemplateIds.length > 0) {
+      const templateIndex = Math.min(attempt - 1, leadTemplateIds.length - 1);
+      const targetTemplateId = leadTemplateIds[templateIndex];
+      const template = await prisma.messageTemplate.findUnique({ where: { id: targetTemplateId } });
+      if (template) {
+        messageContent = replaceVariables(template.content, lead);
+        usedTemplateId = template.id;
+      }
+    }
+  }
+
+  if (!messageContent) {
+    // Fallback: buscar templates do tipo FOLLOW_UP ordenados
     const templates = await prisma.messageTemplate.findMany({
       where: { type: 'FOLLOW_UP' },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { order: 'asc' },
     });
 
     if (templates.length > 0) {
       const templateIndex = Math.min(attempt - 1, templates.length - 1);
       messageContent = replaceVariables(templates[templateIndex].content, lead);
+      usedTemplateId = templates[templateIndex].id;
     } else {
       messageContent = `Olá ${lead.name || ''}! Sou da Senhor Colchão. Vi que você demonstrou interesse em nossos produtos. Posso ajudar?`;
     }
@@ -127,14 +145,33 @@ async function processFollowUp(job: Job<FollowUpJobData>) {
   console.log(`⏳ Aguardando ${(delayMs / 1000).toFixed(0)}s antes de enviar para ${lead.phone}...`);
   await new Promise((resolve) => setTimeout(resolve, delayMs));
 
-  // Enviar via WuzAPI
-  const result = await wuzapiService.sendText(lead.phone, messageContent);
+  // Tentar encontrar a conversa ativa do lead no Chatwoot
+  let conversationId: number | null = null;
+  if (lead.chatwootContactId) {
+    const conversation = await chatwootService.getConversationByContact(lead.chatwootContactId);
+    if (conversation) {
+      conversationId = conversation.id;
+    }
+  }
+
+  let result: { success: boolean; messageId?: number; error?: string };
+
+  if (conversationId) {
+    // Enviar via Chatwoot API (usando o Bot Configurador)
+    result = await chatwootService.sendMessage(conversationId, messageContent);
+  } else {
+    // Falha: não há conversa aberta/conhecida para este contato no Chatwoot
+    result = { 
+      success: false, 
+      error: 'Contato sem conversa ativa no Chatwoot para envio de Follow-up' 
+    };
+  }
 
   // Registrar no banco
   const followUpMsg = await prisma.followUpMessage.create({
     data: {
       leadId,
-      templateId: templateId || null,
+      templateId: usedTemplateId || null,
       attemptNumber: attempt,
       messageContent,
       status: result.success ? 'SENT' : 'FAILED',
@@ -193,7 +230,7 @@ async function processFollowUp(job: Job<FollowUpJobData>) {
 
   return {
     status: result.success ? 'SENT' : 'FAILED',
-    messageId: result.messageId,
+    messageId: result.messageId ? String(result.messageId) : undefined,
     error: result.error,
   };
 }
@@ -224,9 +261,32 @@ export function startFollowUpWorker(): Worker {
 }
 
 /**
- * Agenda follow-up para um lead
+ * Agenda follow-up para um lead (com proteção contra duplicatas)
  */
-export async function scheduleFollowUp(leadId: string, templateId?: string, delayMs?: number): Promise<void> {
+export async function scheduleFollowUp(leadId: string, templateId?: string, delayMs?: number): Promise<boolean> {
+  // Verificar se o lead já tem mensagem enviada nos últimos 30 minutos
+  const recentMessage = await prisma.followUpMessage.findFirst({
+    where: {
+      leadId,
+      sentAt: { gte: new Date(Date.now() - 30 * 60 * 1000) },
+    },
+  });
+
+  if (recentMessage) {
+    console.log(`⏭️  Lead ${leadId} já recebeu follow-up nos últimos 30min, ignorando.`);
+    return false;
+  }
+
+  // Verificar se já existe job pendente na fila para este lead
+  const existingJob = await followUpQueue.getJob(`followup-${leadId}-1`);
+  if (existingJob) {
+    const state = await existingJob.getState();
+    if (state === 'waiting' || state === 'delayed' || state === 'active') {
+      console.log(`⏭️  Lead ${leadId} já tem job ${state} na fila, ignorando.`);
+      return false;
+    }
+  }
+
   await followUpQueue.add('follow-up', {
     leadId,
     templateId,
@@ -239,4 +299,5 @@ export async function scheduleFollowUp(leadId: string, templateId?: string, dela
   });
 
   console.log(`📅 Follow-up agendado para lead ${leadId}`);
+  return true;
 }

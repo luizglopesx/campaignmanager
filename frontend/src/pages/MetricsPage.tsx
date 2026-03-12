@@ -135,7 +135,7 @@ export default function MetricsPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
       {/* Header */}
       <div>
         <h1 style={{ fontSize: '22px', fontWeight: 600, color: '#1F2937' }}>Métricas & Relatórios</h1>

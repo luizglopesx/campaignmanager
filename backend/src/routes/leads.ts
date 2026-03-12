@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
-import { pollingService } from '../services/polling';
+import { chatwootService } from '../services/chatwoot';
 import { scheduleFollowUp } from '../workers/followup-worker';
 
 const router = Router();
@@ -10,12 +10,13 @@ const router = Router();
 // GET /api/leads
 router.get('/', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { status, stage, search, page = '1', limit = '20' } = req.query;
+    const { status, stage, search, label, page = '1', limit = '20' } = req.query;
     const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
 
     const where: any = {};
     if (status) where.followUpStatus = status;
     if (stage) where.currentStage = stage;
+    if (label) where.labelFilter = label;
     if (search) {
       where.OR = [
         { name: { contains: search as string, mode: 'insensitive' } },
@@ -95,13 +96,153 @@ router.put('/:id/status', authenticate, async (req: AuthRequest, res: Response):
   }
 });
 
-// POST /api/leads/poll — dispara o polling manualmente
-router.post('/poll', authenticate, async (_req: AuthRequest, res: Response): Promise<void> => {
+// ==========================================
+// POST /api/leads/start-followup-by-label
+// Inicia follow-up para contatos de uma etiqueta do Chatwoot
+// ==========================================
+router.post('/start-followup-by-label', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    await pollingService.poll();
-    res.json({ success: true, message: 'Polling executado com sucesso' });
+    const { label, templateIds } = z
+      .object({
+        label: z.string().min(1, 'Label é obrigatória'),
+        templateIds: z.array(z.string()).min(1, 'Selecione pelo menos um template'),
+      })
+      .parse(req.body);
+
+    // Buscar contatos da label via Chatwoot
+    const contacts = await chatwootService.filterContactsByLabel(label);
+    if (contacts.length === 0) {
+      res.status(400).json({ error: 'Nenhum contato encontrado para esta etiqueta' });
+      return;
+    }
+
+    let created = 0;
+    let reactivated = 0;
+    let skipped = 0;
+
+    for (const contact of contacts) {
+      if (!contact.phone) {
+        skipped++;
+        continue;
+      }
+
+      // Verificar se lead já existe
+      const existing = await prisma.lead.findFirst({
+        where: {
+          OR: [
+            { chatwootContactId: contact.contactId },
+            { phone: contact.phone },
+          ],
+        },
+      });
+
+      if (existing) {
+        // Lead existe — reativar se não estiver ativo
+        if (existing.followUpStatus !== 'ACTIVE') {
+          await prisma.lead.update({
+            where: { id: existing.id },
+            data: {
+              followUpStatus: 'ACTIVE',
+              followUpAttempts: 0,
+              labelFilter: label,
+              templateIds: templateIds as any,
+              lastMessageSentAt: null,
+            },
+          });
+          await scheduleFollowUp(existing.id, templateIds[0], 0);
+          reactivated++;
+        } else {
+          skipped++;
+        }
+      } else {
+        // Criar novo lead
+        const lead = await prisma.lead.create({
+          data: {
+            chatwootContactId: contact.contactId,
+            name: contact.name || 'Sem nome',
+            phone: contact.phone,
+            currentStage: label,
+            labelFilter: label,
+            templateIds: templateIds as any,
+            followUpStatus: 'ACTIVE',
+            followUpAttempts: 0,
+          },
+        });
+        await scheduleFollowUp(lead.id, templateIds[0], 0);
+        created++;
+      }
+    }
+
+    // Audit log
+    const systemUser = req.user!;
+    await prisma.auditLog.create({
+      data: {
+        userId: systemUser.id,
+        action: 'FOLLOWUP_STARTED_BY_LABEL',
+        entityType: 'Lead',
+        details: {
+          label,
+          templateIds,
+          created,
+          reactivated,
+          skipped,
+          totalContacts: contacts.length,
+        } as any,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: `Follow-up iniciado: ${created} novos, ${reactivated} reativados, ${skipped} ignorados`,
+      stats: { created, reactivated, skipped, totalContacts: contacts.length },
+    });
   } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: error.errors[0].message });
+      return;
+    }
+    res.status(500).json({ error: error.message || 'Erro ao iniciar follow-up' });
+  }
+});
+
+// ==========================================
+// PUT /api/leads/bulk-status
+// Pausar ou retomar TODOS os leads de uma vez
+// ==========================================
+router.put('/bulk-status', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { status } = z
+      .object({ status: z.enum(['PAUSED', 'ACTIVE']) })
+      .parse(req.body);
+
+    const fromStatus = status === 'PAUSED' ? 'ACTIVE' : 'PAUSED';
+
+    const result = await prisma.lead.updateMany({
+      where: { followUpStatus: fromStatus },
+      data: { followUpStatus: status },
+    });
+
+    // Audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user!.id,
+        action: status === 'PAUSED' ? 'FOLLOWUP_BULK_PAUSED' : 'FOLLOWUP_BULK_RESUMED',
+        entityType: 'Lead',
+        details: { count: result.count, fromStatus, toStatus: status } as any,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: `${result.count} leads alterados para ${status}`,
+      count: result.count,
+    });
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: error.errors[0].message });
+      return;
+    }
+    res.status(500).json({ error: error.message || 'Erro ao atualizar status em lote' });
   }
 });
 
@@ -111,7 +252,8 @@ router.post('/:id/trigger-followup', authenticate, async (req: AuthRequest, res:
     const lead = await prisma.lead.findUnique({ where: { id: String(req.params.id) } });
     if (!lead) { res.status(404).json({ error: 'Lead não encontrado' }); return; }
 
-    await scheduleFollowUp(lead.id, undefined, 0);
+    const templateIds = (lead.templateIds as string[]) || [];
+    await scheduleFollowUp(lead.id, templateIds[0] || undefined, 0);
     res.json({ success: true, message: `Follow-up agendado para ${lead.name}` });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
@@ -152,3 +294,4 @@ router.get('/stats/overview', authenticate, async (_req: AuthRequest, res: Respo
 });
 
 export default router;
+
