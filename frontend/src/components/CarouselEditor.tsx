@@ -1,11 +1,12 @@
 import { useState, useRef } from 'react';
-import { Upload, X, ArrowLeft, ArrowRight, Image as ImageIcon } from 'lucide-react';
+import { Upload, X, ArrowLeft, ArrowRight, Image as ImageIcon, Type } from 'lucide-react';
 import { uploadApi } from '../services/api';
 import toast from 'react-hot-toast';
 
-interface CarouselImage {
+export interface CarouselImage {
   id?: string;
   imageUrl: string;
+  caption?: string;
   order: number;
 }
 
@@ -18,6 +19,7 @@ interface CarouselEditorProps {
 export default function CarouselEditor({ images, onChange, disabled }: CarouselEditorProps) {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -36,6 +38,7 @@ export default function CarouselEditor({ images, onChange, disabled }: CarouselE
         const res = await uploadApi.image(file);
         newImages.push({
           imageUrl: res.data.url,
+          caption: '',
           order: newImages.length,
         });
       }
@@ -52,7 +55,6 @@ export default function CarouselEditor({ images, onChange, disabled }: CarouselE
   const removeImage = (index: number) => {
     const newImages = [...images];
     newImages.splice(index, 1);
-    // Reordenar
     newImages.forEach((img, i) => { img.order = i; });
     onChange(newImages);
   };
@@ -63,8 +65,6 @@ export default function CarouselEditor({ images, onChange, disabled }: CarouselE
     const temp = newImages[index - 1];
     newImages[index - 1] = newImages[index];
     newImages[index] = temp;
-    
-    // Atualiza prop order
     newImages.forEach((img, i) => { img.order = i; });
     onChange(newImages);
   };
@@ -75,88 +75,254 @@ export default function CarouselEditor({ images, onChange, disabled }: CarouselE
     const temp = newImages[index + 1];
     newImages[index + 1] = newImages[index];
     newImages[index] = temp;
-
-    // Atualiza prop order
     newImages.forEach((img, i) => { img.order = i; });
     onChange(newImages);
   };
 
+  const updateCaption = (index: number, caption: string) => {
+    const newImages = [...images];
+    newImages[index] = { ...newImages[index], caption };
+    onChange(newImages);
+  };
+
   return (
-    <div className="space-y-4">
+    <div>
       {/* Upload Zone */}
-      <div 
+      <div
         onClick={() => !disabled && !uploading && fileInputRef.current?.click()}
-        className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
-          disabled ? 'opacity-50 cursor-not-allowed bg-surface-50 border-surface-200' : 
-          'cursor-pointer border-primary-200 hover:bg-primary-50/50 hover:border-primary-400 bg-white'
-        }`}
+        style={{
+          border: '2px dashed',
+          borderColor: disabled ? '#D1D5DB' : '#93C5FD',
+          borderRadius: '12px',
+          padding: '24px',
+          textAlign: 'center',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          backgroundColor: disabled ? '#F9FAFB' : '#fff',
+          transition: 'border-color 0.2s, background-color 0.2s',
+          opacity: disabled ? 0.5 : 1,
+        }}
+        onMouseOver={e => {
+          if (!disabled) {
+            e.currentTarget.style.borderColor = '#3B82F6';
+            e.currentTarget.style.backgroundColor = '#EFF6FF';
+          }
+        }}
+        onMouseOut={e => {
+          if (!disabled) {
+            e.currentTarget.style.borderColor = '#93C5FD';
+            e.currentTarget.style.backgroundColor = '#fff';
+          }
+        }}
       >
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          className="hidden" 
-          accept="image/*" 
-          multiple 
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          accept="image/*"
+          multiple
           onChange={handleFileChange}
           disabled={disabled || uploading}
         />
-        <div className="flex flex-col items-center justify-center gap-2 text-text-muted">
-          <Upload size={32} className={uploading ? 'animate-bounce text-primary-400' : 'text-primary-300'} />
-          <p className="font-medium text-text-primary">
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: '#6B7280' }}>
+          <Upload size={28} style={{ color: uploading ? '#3B82F6' : '#93C5FD' }} />
+          <p style={{ fontWeight: 500, color: '#374151', margin: 0, fontSize: '14px' }}>
             {uploading ? 'Fazendo upload...' : 'Clique ou arraste imagens aqui'}
           </p>
-          <p className="text-sm">Formatos suportados: JPG, PNG, WEBP (Máx 5MB)</p>
+          <p style={{ fontSize: '12px', margin: 0, color: '#9CA3AF' }}>Formatos: JPG, PNG, WEBP (Max 5MB)</p>
         </div>
       </div>
 
-      {/* Grid de Imagens */}
+      {/* Cards horizontais */}
       {images.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div
+          ref={scrollRef}
+          style={{
+            display: 'flex',
+            gap: '16px',
+            overflowX: 'auto',
+            paddingBottom: '8px',
+            paddingTop: '20px',
+            scrollBehavior: 'smooth',
+          }}
+        >
           {images.map((img, index) => (
-            <div key={index} className="relative group bg-surface-50 rounded-xl overflow-hidden border border-surface-200 aspect-square">
-              <img src={img.imageUrl} alt={`Carousel ${index + 1}`} className="w-full h-full object-cover" />
-              
-              {!disabled && (
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
-                  <div className="flex justify-end">
-                    <button 
+            <div
+              key={index}
+              style={{
+                minWidth: '240px',
+                maxWidth: '240px',
+                backgroundColor: '#fff',
+                border: '1px solid #E5E7EB',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                display: 'flex',
+                flexDirection: 'column',
+                flexShrink: 0,
+              }}
+            >
+              {/* Image */}
+              <div style={{ position: 'relative', width: '240px', height: '160px', backgroundColor: '#F3F4F6' }}>
+                <img
+                  src={img.imageUrl}
+                  alt={`Card ${index + 1}`}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                />
+                {/* Badge de ordem */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '8px',
+                    left: '8px',
+                    backgroundColor: 'rgba(0,0,0,0.6)',
+                    color: '#fff',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: '10px',
+                  }}
+                >
+                  {index + 1}
+                </div>
+                {/* Actions overlay */}
+                {!disabled && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '6px',
+                      right: '6px',
+                      display: 'flex',
+                      gap: '4px',
+                    }}
+                  >
+                    <button
                       onClick={() => removeImage(index)}
-                      className="p-1.5 bg-red-500 rounded-lg text-white hover:bg-red-600 transition-colors"
+                      style={{
+                        padding: '4px',
+                        backgroundColor: '#EF4444',
+                        border: 'none',
+                        borderRadius: '6px',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
                       title="Remover"
                     >
                       <X size={14} />
                     </button>
                   </div>
-                  <div className="flex justify-between">
-                    <button 
+                )}
+                {/* Move buttons */}
+                {!disabled && images.length > 1 && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: '6px',
+                      left: '6px',
+                      right: '6px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <button
                       onClick={() => moveLeft(index)}
                       disabled={index === 0}
-                      className="p-1.5 bg-white/20 hover:bg-white/40 backdrop-blur-sm rounded-lg text-white disabled:opacity-30 transition-colors"
+                      style={{
+                        padding: '4px 8px',
+                        backgroundColor: 'rgba(255,255,255,0.85)',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: index === 0 ? 'not-allowed' : 'pointer',
+                        opacity: index === 0 ? 0.3 : 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        color: '#374151',
+                      }}
                     >
                       <ArrowLeft size={14} />
                     </button>
-                    <span className="text-white text-xs font-bold drop-shadow-md bg-black/40 px-2 py-0.5 rounded-full self-center">
-                      {index + 1}
-                    </span>
-                    <button 
+                    <button
                       onClick={() => moveRight(index)}
                       disabled={index === images.length - 1}
-                      className="p-1.5 bg-white/20 hover:bg-white/40 backdrop-blur-sm rounded-lg text-white disabled:opacity-30 transition-colors"
+                      style={{
+                        padding: '4px 8px',
+                        backgroundColor: 'rgba(255,255,255,0.85)',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: index === images.length - 1 ? 'not-allowed' : 'pointer',
+                        opacity: index === images.length - 1 ? 0.3 : 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        color: '#374151',
+                      }}
                     >
                       <ArrowRight size={14} />
                     </button>
                   </div>
+                )}
+              </div>
+
+              {/* Caption */}
+              <div style={{ padding: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                  <Type size={13} style={{ color: '#9CA3AF' }} />
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Legenda
+                  </span>
                 </div>
-              )}
+                <textarea
+                  value={img.caption || ''}
+                  onChange={e => updateCaption(index, e.target.value)}
+                  disabled={disabled}
+                  placeholder={`Texto do card ${index + 1}...`}
+                  rows={3}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    border: '1px solid #E5E7EB',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    color: '#374151',
+                    backgroundColor: disabled ? '#F9FAFB' : '#fff',
+                    outline: 'none',
+                    resize: 'none',
+                    fontFamily: 'inherit',
+                    boxSizing: 'border-box',
+                    lineHeight: 1.4,
+                  }}
+                  onFocus={e => {
+                    e.currentTarget.style.borderColor = '#3B82F6';
+                    e.currentTarget.style.boxShadow = '0 0 0 2px rgba(59,130,246,0.10)';
+                  }}
+                  onBlur={e => {
+                    e.currentTarget.style.borderColor = '#E5E7EB';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                />
+                <p style={{ fontSize: '11px', color: '#B0B0B0', margin: '4px 0 0', lineHeight: 1.3 }}>
+                  Use {'{{nome}}'} para personalizar
+                </p>
+              </div>
             </div>
           ))}
         </div>
       )}
 
       {images.length === 0 && !uploading && (
-        <div className="py-8 bg-surface-50 rounded-xl border border-surface-200 text-center">
-          <ImageIcon size={32} className="mx-auto text-surface-300 mb-2" />
-          <p className="text-sm text-text-muted">Nenhuma imagem adicionada ao carrossel.</p>
+        <div
+          style={{
+            padding: '40px 16px',
+            backgroundColor: '#F9FAFB',
+            borderRadius: '12px',
+            border: '1px solid #E5E7EB',
+            textAlign: 'center',
+            marginTop: '16px',
+          }}
+        >
+          <ImageIcon size={32} style={{ color: '#D1D5DB', marginBottom: '8px' }} />
+          <p style={{ fontSize: '14px', color: '#9CA3AF', margin: 0 }}>Nenhuma imagem adicionada ao carrossel.</p>
         </div>
       )}
     </div>

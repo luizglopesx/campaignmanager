@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { campaignsApi } from '../services/api';
+import { campaignsApi, broadcastApi } from '../services/api';
 import CarouselEditor from '../components/CarouselEditor';
+import type { CarouselImage } from '../components/CarouselEditor';
 import toast from 'react-hot-toast';
-import { ChevronRight, ArrowLeft, CheckCircle2, Users, Send, Megaphone, Play } from 'lucide-react';
+import { ChevronRight, ArrowLeft, CheckCircle2, Users, Send, Megaphone, Play, Tag, Search, UserPlus } from 'lucide-react';
 
 export default function CampaignWizard() {
   const { id } = useParams();
@@ -12,10 +13,20 @@ export default function CampaignWizard() {
   const [step, setStep] = useState(1);
   const [campaign, setCampaign] = useState<any>(null);
 
-  // States of steps
+  // Step 1 - Detalhes
   const [details, setDetails] = useState({ name: '', description: '' });
-  const [images, setImages] = useState<any[]>([]);
+  // Step 2 - Carrossel (cards)
+  const [images, setImages] = useState<CarouselImage[]>([]);
+  // Step 3 - Destinatários
   const [recipientsText, setRecipientsText] = useState('');
+  const [recipientMode, setRecipientMode] = useState<'label' | 'manual'>('label');
+  const [labels, setLabels] = useState<any[]>([]);
+  const [selectedLabel, setSelectedLabel] = useState('');
+  const [labelContacts, setLabelContacts] = useState<any[]>([]);
+  const [loadingLabels, setLoadingLabels] = useState(false);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [labelSearch, setLabelSearch] = useState('');
+
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -28,9 +39,15 @@ export default function CampaignWizard() {
       const data = res.data;
       setCampaign(data);
       setDetails({ name: data.name, description: data.description || '' });
-      setImages(data.images || []);
+      setImages(
+        (data.images || []).map((img: any) => ({
+          id: img.id,
+          imageUrl: img.imageUrl,
+          caption: img.caption || '',
+          order: img.order,
+        }))
+      );
 
-      // Se não for draft, pula pro fim ou mostra warning
       if (data.status !== 'DRAFT') {
         setStep(4);
       }
@@ -39,6 +56,32 @@ export default function CampaignWizard() {
       navigate('/campaigns');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadLabels = async () => {
+    if (labels.length > 0) return;
+    setLoadingLabels(true);
+    try {
+      const res = await broadcastApi.labels();
+      setLabels(res.data?.payload || res.data || []);
+    } catch {
+      toast.error('Erro ao carregar etiquetas do Chatwoot');
+    } finally {
+      setLoadingLabels(false);
+    }
+  };
+
+  const selectLabel = async (labelTitle: string) => {
+    setSelectedLabel(labelTitle);
+    setLoadingContacts(true);
+    try {
+      const res = await broadcastApi.contactsByLabel(labelTitle);
+      setLabelContacts(res.data?.contacts || res.data || []);
+    } catch {
+      toast.error('Erro ao carregar contatos da etiqueta');
+    } finally {
+      setLoadingContacts(false);
     }
   };
 
@@ -58,50 +101,74 @@ export default function CampaignWizard() {
   const saveImages = async () => {
     setIsSaving(true);
     try {
-      await campaignsApi.addImages(id!, { images });
-      toast.success('Imagens salvas');
+      await campaignsApi.addImages(id!, {
+        images: images.map(img => ({
+          imageUrl: img.imageUrl,
+          caption: img.caption || '',
+          order: img.order,
+        })),
+      });
+      toast.success('Cards salvos');
       setStep(3);
+      loadLabels();
     } catch {
-      toast.error('Erro ao salvar imagens');
+      toast.error('Erro ao salvar cards');
     } finally {
       setIsSaving(false);
     }
   };
 
   const saveRecipients = async () => {
-    if (!recipientsText.trim()) {
-      setStep(4);
-      return;
-    }
+    let validRecipients: { phone: string; name: string }[] = [];
 
-    // Extrai telefones
-    const lines = recipientsText.split('\n').filter(l => l.trim().length > 0);
-    const validRecipients = lines.map(line => {
-      // Exemplo básico: Nome, Telefone ou Múltiplos formatos de CSV.
-      // Para simplificar: Pega a última palavra como sendo o telefone substituindo não numéricos
-      const parts = line.split(/[;,]/);
-      let phone = '';
-      let name = '';
-      if (parts.length > 1) {
-        name = parts[0].trim();
-        phone = parts[1].replace(/\D/g, '');
-      } else {
-        phone = line.replace(/\D/g, '');
+    if (recipientMode === 'label') {
+      if (!selectedLabel || labelContacts.length === 0) {
+        toast.error('Selecione uma etiqueta com contatos.');
+        return;
       }
-      return { phone, name };
-    }).filter(r => r.phone.length >= 10);
+      validRecipients = labelContacts
+        .filter((c: any) => c.phone)
+        .map((c: any) => ({
+          phone: c.phone.replace(/\D/g, ''),
+          name: c.name || '',
+        }))
+        .filter(r => r.phone.length >= 10);
 
-    if (validRecipients.length === 0) {
-      toast.error('Nenhum destinatário válido encontrado.');
-      return;
+      if (validRecipients.length === 0) {
+        toast.error('Nenhum contato com telefone válido encontrado nesta etiqueta.');
+        return;
+      }
+    } else {
+      if (!recipientsText.trim()) {
+        setStep(4);
+        return;
+      }
+      const lines = recipientsText.split('\n').filter(l => l.trim().length > 0);
+      validRecipients = lines.map(line => {
+        const parts = line.split(/[;,]/);
+        let phone = '';
+        let name = '';
+        if (parts.length > 1) {
+          name = parts[0].trim();
+          phone = parts[1].replace(/\D/g, '');
+        } else {
+          phone = line.replace(/\D/g, '');
+        }
+        return { phone, name };
+      }).filter(r => r.phone.length >= 10);
+
+      if (validRecipients.length === 0) {
+        toast.error('Nenhum destinatário válido encontrado.');
+        return;
+      }
     }
 
     setIsSaving(true);
     try {
       await campaignsApi.addRecipients(id!, validRecipients);
       toast.success(`${validRecipients.length} destinatários adicionados!`);
-      setRecipientsText(''); // Limpa texto
-      await loadCampaign(); // Recarrega count de destinatários
+      setRecipientsText('');
+      await loadCampaign();
       setStep(4);
     } catch {
       toast.error('Erro ao adicionar destinatários');
@@ -126,7 +193,7 @@ export default function CampaignWizard() {
 
   const STEPS = [
     { num: 1, title: 'Detalhes' },
-    { num: 2, title: 'Carrossel' },
+    { num: 2, title: 'Cards' },
     { num: 3, title: 'Destinatários' },
     { num: 4, title: 'Confirmação' },
   ];
@@ -134,10 +201,7 @@ export default function CampaignWizard() {
   if (loading) {
     return (
       <div style={{ minHeight: '100%' }}>
-        <div
-          className="animate-pulse"
-          style={{ height: '256px', backgroundColor: '#E5E7EB', borderRadius: '12px' }}
-        />
+        <div style={{ height: '256px', backgroundColor: '#E5E7EB', borderRadius: '12px' }} />
       </div>
     );
   }
@@ -145,7 +209,6 @@ export default function CampaignWizard() {
 
   const isDraft = campaign.status === 'DRAFT';
 
-  // Input style helpers
   const inputStyle = (disabled?: boolean): React.CSSProperties => ({
     width: '100%',
     padding: '10px 14px',
@@ -170,12 +233,17 @@ export default function CampaignWizard() {
     },
   };
 
+  const filteredLabels = labels.filter((l: any) => {
+    const title = l.title || l.name || l;
+    return typeof title === 'string' && title.toLowerCase().includes(labelSearch.toLowerCase());
+  });
+
   return (
     <div style={{ minHeight: '100%' }}>
-      <div style={{ maxWidth: '896px', margin: '0 auto' }} className="space-y-6 pb-16">
+      <div style={{ maxWidth: '960px', margin: '0 auto', paddingBottom: '64px' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
           <button
             onClick={() => navigate('/campaigns')}
             style={{
@@ -188,7 +256,6 @@ export default function CampaignWizard() {
               alignItems: 'center',
               color: '#374151',
             }}
-            className="hover:bg-gray-50 transition-colors"
           >
             <ArrowLeft size={20} strokeWidth={1.75} />
           </button>
@@ -222,10 +289,10 @@ export default function CampaignWizard() {
             borderRadius: '12px',
             padding: '20px 24px',
             boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)',
+            marginBottom: '24px',
           }}
         >
           <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-            {/* Background track */}
             <div
               style={{
                 position: 'absolute',
@@ -237,7 +304,6 @@ export default function CampaignWizard() {
                 zIndex: 0,
               }}
             />
-            {/* Progress fill */}
             <div
               style={{
                 position: 'absolute',
@@ -285,7 +351,6 @@ export default function CampaignWizard() {
                       fontWeight: 500,
                       color: (isActive || isCompleted) ? '#374151' : '#9CA3AF',
                     }}
-                    className="hidden sm:block"
                   >
                     {s.title}
                   </span>
@@ -308,9 +373,9 @@ export default function CampaignWizard() {
         >
           {/* STEP 1: Detalhes */}
           {step === 1 && (
-            <div style={{ padding: '24px 32px' }} className="space-y-5">
-              <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1F2937', margin: '0 0 16px' }}>Mensagem Base</h2>
-              <div>
+            <div style={{ padding: '24px 32px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1F2937', margin: '0 0 20px' }}>Detalhes da Campanha</h2>
+              <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>
                   Nome da Campanha
                 </label>
@@ -318,43 +383,29 @@ export default function CampaignWizard() {
                   value={details.name}
                   onChange={e => setDetails({ ...details, name: e.target.value })}
                   disabled={!isDraft}
+                  placeholder="Ex: Promoção de Março - Colchões"
                   style={inputStyle(!isDraft)}
                   {...(!isDraft ? {} : focusHandlers)}
                 />
               </div>
-              <div>
+              <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>
-                  Corpo da Mensagem (Texto principal / Caption)
+                  Descrição / Observações (opcional, uso interno)
                 </label>
                 <textarea
                   value={details.description}
                   onChange={e => setDetails({ ...details, description: e.target.value })}
                   disabled={!isDraft}
-                  placeholder="Exemplo: Olá {{nome}}, confira as novidades da Senhor Colchão!"
-                  rows={6}
+                  placeholder="Anotações internas sobre a campanha..."
+                  rows={3}
                   style={{ ...inputStyle(!isDraft), resize: 'vertical' }}
                   {...(!isDraft ? {} : focusHandlers)}
                 />
-                <p style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '6px' }}>
-                  Use{' '}
-                  <code
-                    style={{
-                      backgroundColor: '#F3F4F6',
-                      padding: '1px 6px',
-                      borderRadius: '4px',
-                      color: '#3B82F6',
-                      fontFamily: 'monospace',
-                    }}
-                  >
-                    {'{{nome}}'}
-                  </code>{' '}
-                  para substituir dinamicamente pelo nome do contato.
-                </p>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '8px' }}>
                 <button
                   onClick={saveDetails}
-                  disabled={isSaving || !isDraft}
+                  disabled={isSaving || !isDraft || !details.name.trim()}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -362,15 +413,15 @@ export default function CampaignWizard() {
                     padding: '10px 24px',
                     borderRadius: '8px',
                     border: 'none',
-                    backgroundColor: (isSaving || !isDraft) ? '#BFDBFE' : '#3B82F6',
+                    backgroundColor: (isSaving || !isDraft || !details.name.trim()) ? '#BFDBFE' : '#3B82F6',
                     color: '#fff',
                     fontSize: '14px',
                     fontWeight: 500,
-                    cursor: (isSaving || !isDraft) ? 'not-allowed' : 'pointer',
+                    cursor: (isSaving || !isDraft || !details.name.trim()) ? 'not-allowed' : 'pointer',
                     transition: 'background-color 0.15s',
                   }}
-                  onMouseOver={e => { if (!isSaving && isDraft) e.currentTarget.style.backgroundColor = '#2563EB'; }}
-                  onMouseOut={e => { if (!isSaving && isDraft) e.currentTarget.style.backgroundColor = '#3B82F6'; }}
+                  onMouseOver={e => { if (!isSaving && isDraft && details.name.trim()) e.currentTarget.style.backgroundColor = '#2563EB'; }}
+                  onMouseOut={e => { if (!isSaving && isDraft && details.name.trim()) e.currentTarget.style.backgroundColor = '#3B82F6'; }}
                 >
                   {isSaving ? 'Salvando...' : 'Próximo'} <ChevronRight size={18} strokeWidth={1.75} />
                 </button>
@@ -378,13 +429,13 @@ export default function CampaignWizard() {
             </div>
           )}
 
-          {/* STEP 2: Imagens */}
+          {/* STEP 2: Cards do Carrossel */}
           {step === 2 && (
             <div style={{ padding: '24px 32px', display: 'flex', flexDirection: 'column', minHeight: '400px' }}>
               <div style={{ flex: 1 }}>
-                <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1F2937', margin: '0 0 8px' }}>Imagens do Carrossel</h2>
+                <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1F2937', margin: '0 0 8px' }}>Cards do Carrossel</h2>
                 <p style={{ fontSize: '14px', color: '#6B7280', marginBottom: '24px' }}>
-                  Adicione imagens que acompanharão sua mensagem. Elas serão enviadas em formato de carrossel se mais de uma for fornecida.
+                  Adicione imagens e escreva a legenda de cada card. Cada imagem será enviada com seu próprio texto.
                 </p>
                 <CarouselEditor images={images} onChange={setImages} disabled={!isDraft} />
               </div>
@@ -445,8 +496,8 @@ export default function CampaignWizard() {
           {/* STEP 3: Destinatários */}
           {step === 3 && (
             <div style={{ padding: '24px 32px', display: 'flex', flexDirection: 'column', minHeight: '400px' }}>
-              <div style={{ flex: 1 }} className="space-y-5">
-                <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1F2937', margin: 0 }}>Destinatários</h2>
+              <div style={{ flex: 1 }}>
+                <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1F2937', margin: '0 0 16px' }}>Destinatários</h2>
 
                 {/* Info Box */}
                 <div
@@ -454,10 +505,11 @@ export default function CampaignWizard() {
                     backgroundColor: '#EFF6FF',
                     border: '1px solid #BFDBFE',
                     borderRadius: '8px',
-                    padding: '16px',
+                    padding: '14px 16px',
                     display: 'flex',
-                    alignItems: 'flex-start',
+                    alignItems: 'center',
                     gap: '12px',
+                    marginBottom: '20px',
                   }}
                 >
                   <div
@@ -474,44 +526,213 @@ export default function CampaignWizard() {
                   >
                     <Users size={18} strokeWidth={1.75} style={{ color: '#2563EB' }} />
                   </div>
-                  <div>
-                    <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#1D4ED8', margin: '0 0 4px' }}>Status Atual da Base</h4>
-                    <p style={{ fontSize: '14px', color: '#1D4ED8', margin: 0, lineHeight: 1.5 }}>
-                      Sua campanha atualmente possui{' '}
-                      <strong>{campaign._count?.recipients || 0} destinatários</strong> pendentes de processamento. Novos destinatários colados abaixo serão somados a essa base e processados no momento do disparo.
-                    </p>
-                  </div>
+                  <p style={{ fontSize: '14px', color: '#1D4ED8', margin: 0, lineHeight: 1.5 }}>
+                    Sua campanha possui{' '}
+                    <strong>{campaign._count?.recipients || 0} destinatários</strong> carregados.
+                    Novos contatos serão somados à base existente.
+                  </p>
                 </div>
 
+                {/* Mode Tabs */}
                 {isDraft && (
-                  <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>
-                      Adicionar mais contatos (Importação Rápida via CSV/Texto Colado)
-                    </label>
-                    <textarea
-                      value={recipientsText}
-                      onChange={e => setRecipientsText(e.target.value)}
-                      placeholder="Nome, Telefone (Formato suportado: um por linha. Ex: João, 5511999999999 ou apenas 5511999999999)"
-                      rows={7}
-                      style={{
-                        ...inputStyle(false),
-                        resize: 'none',
-                        fontFamily: 'monospace',
-                        fontSize: '13px',
-                      }}
-                      onFocus={e => {
-                        e.currentTarget.style.borderColor = '#3B82F6';
-                        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.10)';
-                      }}
-                      onBlur={e => {
-                        e.currentTarget.style.borderColor = '#E5E7EB';
-                        e.currentTarget.style.boxShadow = 'none';
-                      }}
-                    />
-                    <p style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '6px' }}>
-                      Os números repetidos da base serão ignorados (não processam duplicatas).
-                    </p>
-                  </div>
+                  <>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+                      <button
+                        onClick={() => setRecipientMode('label')}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '10px 18px',
+                          borderRadius: '8px',
+                          border: `2px solid ${recipientMode === 'label' ? '#3B82F6' : '#E5E7EB'}`,
+                          backgroundColor: recipientMode === 'label' ? '#EFF6FF' : '#fff',
+                          color: recipientMode === 'label' ? '#2563EB' : '#6B7280',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <Tag size={16} /> Por Etiqueta (Chatwoot)
+                      </button>
+                      <button
+                        onClick={() => setRecipientMode('manual')}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '10px 18px',
+                          borderRadius: '8px',
+                          border: `2px solid ${recipientMode === 'manual' ? '#3B82F6' : '#E5E7EB'}`,
+                          backgroundColor: recipientMode === 'manual' ? '#EFF6FF' : '#fff',
+                          color: recipientMode === 'manual' ? '#2563EB' : '#6B7280',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <UserPlus size={16} /> Importação Manual (CSV)
+                      </button>
+                    </div>
+
+                    {/* Label Mode */}
+                    {recipientMode === 'label' && (
+                      <div>
+                        {/* Search */}
+                        <div style={{ position: 'relative', marginBottom: '12px' }}>
+                          <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
+                          <input
+                            value={labelSearch}
+                            onChange={e => setLabelSearch(e.target.value)}
+                            placeholder="Buscar etiqueta..."
+                            style={{ ...inputStyle(false), paddingLeft: '36px' }}
+                            {...focusHandlers}
+                          />
+                        </div>
+
+                        {loadingLabels ? (
+                          <p style={{ fontSize: '14px', color: '#9CA3AF', textAlign: 'center', padding: '24px' }}>
+                            Carregando etiquetas...
+                          </p>
+                        ) : (
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              gap: '8px',
+                              maxHeight: '180px',
+                              overflowY: 'auto',
+                              padding: '4px 0',
+                            }}
+                          >
+                            {filteredLabels.map((label: any, idx: number) => {
+                              const title = label.title || label.name || label;
+                              const color = label.color || '#6B7280';
+                              const isSelected = selectedLabel === title;
+                              return (
+                                <button
+                                  key={idx}
+                                  onClick={() => selectLabel(title)}
+                                  style={{
+                                    padding: '6px 14px',
+                                    borderRadius: '20px',
+                                    border: `2px solid ${isSelected ? '#3B82F6' : '#E5E7EB'}`,
+                                    backgroundColor: isSelected ? '#EFF6FF' : '#fff',
+                                    color: isSelected ? '#2563EB' : '#374151',
+                                    fontSize: '13px',
+                                    fontWeight: 500,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                  }}
+                                >
+                                  <span style={{
+                                    width: '8px',
+                                    height: '8px',
+                                    borderRadius: '50%',
+                                    backgroundColor: color,
+                                    display: 'inline-block',
+                                  }} />
+                                  {title}
+                                </button>
+                              );
+                            })}
+                            {filteredLabels.length === 0 && !loadingLabels && (
+                              <p style={{ fontSize: '13px', color: '#9CA3AF', padding: '8px' }}>
+                                Nenhuma etiqueta encontrada.
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Selected label info */}
+                        {selectedLabel && (
+                          <div
+                            style={{
+                              marginTop: '16px',
+                              padding: '14px 16px',
+                              backgroundColor: '#F0FDF4',
+                              border: '1px solid #BBF7D0',
+                              borderRadius: '8px',
+                            }}
+                          >
+                            {loadingContacts ? (
+                              <p style={{ fontSize: '14px', color: '#15803D', margin: 0 }}>
+                                Carregando contatos da etiqueta "{selectedLabel}"...
+                              </p>
+                            ) : (
+                              <>
+                                <p style={{ fontSize: '14px', color: '#15803D', margin: 0, fontWeight: 600 }}>
+                                  Etiqueta "{selectedLabel}" — {labelContacts.length} contato(s) encontrado(s)
+                                </p>
+                                {labelContacts.length > 0 && (
+                                  <div style={{ marginTop: '10px', maxHeight: '140px', overflowY: 'auto' }}>
+                                    {labelContacts.slice(0, 50).map((c: any, i: number) => (
+                                      <div
+                                        key={i}
+                                        style={{
+                                          display: 'flex',
+                                          justifyContent: 'space-between',
+                                          padding: '4px 0',
+                                          fontSize: '13px',
+                                          color: '#374151',
+                                          borderBottom: i < Math.min(labelContacts.length, 50) - 1 ? '1px solid #E5E7EB' : 'none',
+                                        }}
+                                      >
+                                        <span>{c.name || 'Sem nome'}</span>
+                                        <span style={{ color: '#6B7280', fontFamily: 'monospace', fontSize: '12px' }}>{c.phone || 'Sem telefone'}</span>
+                                      </div>
+                                    ))}
+                                    {labelContacts.length > 50 && (
+                                      <p style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '4px' }}>
+                                        ...e mais {labelContacts.length - 50} contatos
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Manual Mode */}
+                    {recipientMode === 'manual' && (
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>
+                          Importação Rápida via CSV / Texto Colado
+                        </label>
+                        <textarea
+                          value={recipientsText}
+                          onChange={e => setRecipientsText(e.target.value)}
+                          placeholder="Nome, Telefone (um por linha)&#10;Ex: João, 5511999999999&#10;Ou apenas: 5511999999999"
+                          rows={7}
+                          style={{
+                            ...inputStyle(false),
+                            resize: 'none',
+                            fontFamily: 'monospace',
+                            fontSize: '13px',
+                          }}
+                          onFocus={e => {
+                            e.currentTarget.style.borderColor = '#3B82F6';
+                            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.10)';
+                          }}
+                          onBlur={e => {
+                            e.currentTarget.style.borderColor = '#E5E7EB';
+                            e.currentTarget.style.boxShadow = 'none';
+                          }}
+                        />
+                        <p style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '6px' }}>
+                          Números duplicados da base serão ignorados.
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -592,8 +813,8 @@ export default function CampaignWizard() {
 
               <h2 style={{ fontSize: '22px', fontWeight: 600, color: '#1F2937', margin: '0 0 8px' }}>Tudo pronto!</h2>
               <p style={{ fontSize: '14px', color: '#6B7280', maxWidth: '420px', margin: '0 auto 32px', lineHeight: 1.6 }}>
-                Sua campanha possui <strong style={{ color: '#374151' }}>{images.length} imagens</strong> atreladas e{' '}
-                <strong style={{ color: '#374151' }}>{campaign._count?.recipients || 0} destinatários</strong> carregados na fila do banco de dados para disparo.
+                Sua campanha possui <strong style={{ color: '#374151' }}>{images.length} cards</strong> e{' '}
+                <strong style={{ color: '#374151' }}>{campaign._count?.recipients || 0} destinatários</strong> na fila.
               </p>
 
               {/* Summary Card */}
@@ -621,17 +842,17 @@ export default function CampaignWizard() {
                 >
                   Resumo da Execução
                 </h4>
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }} className="space-y-3">
-                  <li style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px' }}>
-                    <span style={{ color: '#6B7280' }}>Destinatários Mapeados:</span>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  <li style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', marginBottom: '12px' }}>
+                    <span style={{ color: '#6B7280' }}>Destinatários:</span>
                     <span style={{ fontWeight: 700, color: '#1F2937' }}>{campaign._count?.recipients || 0}</span>
                   </li>
-                  <li style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px' }}>
-                    <span style={{ color: '#6B7280' }}>Imagens no Carrossel:</span>
+                  <li style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', marginBottom: '12px' }}>
+                    <span style={{ color: '#6B7280' }}>Cards no Carrossel:</span>
                     <span style={{ fontWeight: 700, color: '#1F2937' }}>{images.length}</span>
                   </li>
-                  <li style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px' }}>
-                    <span style={{ color: '#6B7280' }}>Status Atual (Base):</span>
+                  <li style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', marginBottom: '12px' }}>
+                    <span style={{ color: '#6B7280' }}>Status:</span>
                     <span
                       style={{
                         fontWeight: 500,
@@ -730,7 +951,6 @@ export default function CampaignWizard() {
                     fontWeight: 600,
                     color: '#EF4444',
                   }}
-                  className="animate-pulse"
                 >
                   Você precisa de PELO MENOS 1 destinatário para iniciar um disparo.
                 </p>

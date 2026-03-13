@@ -69,11 +69,11 @@ async function processCampaignMessage(job: Job<CampaignJobData>) {
 
     // Verificar tipo de campanha
     if (campaign.images.length > 0) {
-      // Campanha com imagens (carrossel)
-      const images = campaign.images.map((img: any, idx: number) => ({
+      // Campanha com imagens (carrossel) — cada imagem pode ter sua própria legenda
+      const images = campaign.images.map((img: any) => ({
         url: img.imageUrl,
-        caption: idx === 0 && campaign.description
-          ? replaceVariables(campaign.description, recipient)
+        caption: img.caption
+          ? replaceVariables(img.caption, recipient)
           : undefined,
       }));
 
