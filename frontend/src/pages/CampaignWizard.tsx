@@ -64,7 +64,8 @@ export default function CampaignWizard() {
     setLoadingLabels(true);
     try {
       const res = await broadcastApi.labels();
-      setLabels(res.data?.payload || res.data || []);
+      const list = res.data?.labels || res.data?.payload || [];
+      setLabels(Array.isArray(list) ? list : []);
     } catch {
       toast.error('Erro ao carregar etiquetas do Chatwoot');
     } finally {
@@ -77,7 +78,8 @@ export default function CampaignWizard() {
     setLoadingContacts(true);
     try {
       const res = await broadcastApi.contactsByLabel(labelTitle);
-      setLabelContacts(res.data?.contacts || res.data || []);
+      const contacts = res.data?.contacts || [];
+      setLabelContacts(Array.isArray(contacts) ? contacts : []);
     } catch {
       toast.error('Erro ao carregar contatos da etiqueta');
     } finally {
