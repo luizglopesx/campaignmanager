@@ -188,6 +188,7 @@ export const statusApi = {
 // ==========================================
 export const contactsApi = {
   list: (params?: any) => api.get('/contacts', { params }),
+  all: () => api.get('/contacts/all'),
   syncChatwoot: () => api.post('/contacts/sync-chatwoot'),
   export: () => api.get('/contacts/export', { responseType: 'blob' }),
   import: (file: File) => {

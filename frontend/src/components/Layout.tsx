@@ -26,7 +26,7 @@ const navSections = [
       { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
       { to: '/followup', icon: MessageSquare, label: 'Follow-up' },
       { to: '/campaigns', icon: Megaphone, label: 'Campanhas' },
-      { to: '/broadcast', icon: Radio, label: 'Broadcast' },
+      { to: '/broadcast', icon: Radio, label: 'Disparo' },
       { to: '/status', icon: Smartphone, label: 'Status' },
       { to: '/schedule', icon: CalendarClock, label: 'Agendamentos' },
     ],

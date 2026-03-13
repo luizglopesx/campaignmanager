@@ -10,6 +10,22 @@ const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 // ==========================================
+// GET /api/contacts/all - Todos os contatos com telefone (para campanhas)
+// ==========================================
+router.get('/all', authenticate, async (_req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const contacts = await prisma.lead.findMany({
+      select: { id: true, name: true, phone: true },
+      orderBy: { name: 'asc' },
+    });
+    res.json({ contacts });
+  } catch (error) {
+    console.error('Erro ao buscar todos os contatos:', error);
+    res.status(500).json({ error: 'Erro ao buscar contatos' });
+  }
+});
+
+// ==========================================
 // GET /api/contacts - Lista de contatos
 // ==========================================
 router.get('/', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {

@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { campaignsApi, broadcastApi } from '../services/api';
+import { campaignsApi, broadcastApi, contactsApi } from '../services/api';
 import CarouselEditor from '../components/CarouselEditor';
 import type { CarouselImage } from '../components/CarouselEditor';
 import toast from 'react-hot-toast';
-import { ChevronRight, ArrowLeft, CheckCircle2, Users, Send, Megaphone, Play, Tag, Search, UserPlus } from 'lucide-react';
+import { ChevronRight, ArrowLeft, CheckCircle2, Users, Send, Megaphone, Play, Tag, Search, UserPlus, UsersRound } from 'lucide-react';
 
 export default function CampaignWizard() {
   const { id } = useParams();
@@ -19,13 +19,15 @@ export default function CampaignWizard() {
   const [images, setImages] = useState<CarouselImage[]>([]);
   // Step 3 - Destinatários
   const [recipientsText, setRecipientsText] = useState('');
-  const [recipientMode, setRecipientMode] = useState<'label' | 'manual'>('label');
+  const [recipientMode, setRecipientMode] = useState<'label' | 'all' | 'manual'>('label');
   const [labels, setLabels] = useState<any[]>([]);
   const [selectedLabel, setSelectedLabel] = useState('');
   const [labelContacts, setLabelContacts] = useState<any[]>([]);
   const [loadingLabels, setLoadingLabels] = useState(false);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [labelSearch, setLabelSearch] = useState('');
+  const [allContacts, setAllContacts] = useState<any[]>([]);
+  const [loadingAllContacts, setLoadingAllContacts] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -87,6 +89,20 @@ export default function CampaignWizard() {
     }
   };
 
+  const loadAllContacts = async () => {
+    if (allContacts.length > 0) return;
+    setLoadingAllContacts(true);
+    try {
+      const res = await contactsApi.all();
+      const list = res.data?.contacts || [];
+      setAllContacts(Array.isArray(list) ? list : []);
+    } catch {
+      toast.error('Erro ao carregar todos os contatos');
+    } finally {
+      setLoadingAllContacts(false);
+    }
+  };
+
   const saveDetails = async () => {
     setIsSaving(true);
     try {
@@ -138,6 +154,23 @@ export default function CampaignWizard() {
 
       if (validRecipients.length === 0) {
         toast.error('Nenhum contato com telefone válido encontrado nesta etiqueta.');
+        return;
+      }
+    } else if (recipientMode === 'all') {
+      if (allContacts.length === 0) {
+        toast.error('Nenhum contato encontrado na base.');
+        return;
+      }
+      validRecipients = allContacts
+        .filter((c: any) => c.phone)
+        .map((c: any) => ({
+          phone: c.phone.replace(/\D/g, ''),
+          name: c.name || '',
+        }))
+        .filter(r => r.phone.length >= 10);
+
+      if (validRecipients.length === 0) {
+        toast.error('Nenhum contato com telefone válido na base.');
         return;
       }
     } else {
@@ -559,6 +592,25 @@ export default function CampaignWizard() {
                         <Tag size={16} /> Por Etiqueta (Chatwoot)
                       </button>
                       <button
+                        onClick={() => { setRecipientMode('all'); loadAllContacts(); }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '10px 18px',
+                          borderRadius: '8px',
+                          border: `2px solid ${recipientMode === 'all' ? '#3B82F6' : '#E5E7EB'}`,
+                          backgroundColor: recipientMode === 'all' ? '#EFF6FF' : '#fff',
+                          color: recipientMode === 'all' ? '#2563EB' : '#6B7280',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <UsersRound size={16} /> Todos os Contatos
+                      </button>
+                      <button
                         onClick={() => setRecipientMode('manual')}
                         style={{
                           display: 'flex',
@@ -699,6 +751,55 @@ export default function CampaignWizard() {
                               </>
                             )}
                           </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* All Contacts Mode */}
+                    {recipientMode === 'all' && (
+                      <div
+                        style={{
+                          padding: '16px',
+                          backgroundColor: '#F0FDF4',
+                          border: '1px solid #BBF7D0',
+                          borderRadius: '8px',
+                        }}
+                      >
+                        {loadingAllContacts ? (
+                          <p style={{ fontSize: '14px', color: '#15803D', margin: 0 }}>
+                            Carregando todos os contatos da base...
+                          </p>
+                        ) : (
+                          <>
+                            <p style={{ fontSize: '14px', color: '#15803D', margin: 0, fontWeight: 600 }}>
+                              {allContacts.length} contato(s) com telefone encontrado(s) na base
+                            </p>
+                            {allContacts.length > 0 && (
+                              <div style={{ marginTop: '10px', maxHeight: '200px', overflowY: 'auto' }}>
+                                {allContacts.slice(0, 50).map((c: any, i: number) => (
+                                  <div
+                                    key={i}
+                                    style={{
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      padding: '4px 0',
+                                      fontSize: '13px',
+                                      color: '#374151',
+                                      borderBottom: i < Math.min(allContacts.length, 50) - 1 ? '1px solid #E5E7EB' : 'none',
+                                    }}
+                                  >
+                                    <span>{c.name || 'Sem nome'}</span>
+                                    <span style={{ color: '#6B7280', fontFamily: 'monospace', fontSize: '12px' }}>{c.phone || 'Sem telefone'}</span>
+                                  </div>
+                                ))}
+                                {allContacts.length > 50 && (
+                                  <p style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '4px' }}>
+                                    ...e mais {allContacts.length - 50} contatos
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                     )}

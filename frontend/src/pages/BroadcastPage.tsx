@@ -241,14 +241,14 @@ export default function BroadcastPage() {
         message,
         mediaUrl: mediaUrl || undefined,
         mediaType: mediaType || undefined,
-        name: `Broadcast - ${selectedLabel}`,
+        name: `Disparo - ${selectedLabel}`,
       });
       setBroadcastId(res.data.id);
       setStep(3);
-      toast.success(`Broadcast iniciado com ${res.data.queued} destinatários`);
+      toast.success(`Disparo iniciado com ${res.data.queued} destinatários`);
       startPolling(res.data.id);
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Erro ao iniciar broadcast');
+      toast.error(err.response?.data?.error || 'Erro ao iniciar disparo');
     } finally {
       setIsSending(false);
     }
@@ -280,7 +280,7 @@ export default function BroadcastPage() {
     setIsCancelling(true);
     try {
       await broadcastApi.cancel(broadcastId);
-      toast.success('Broadcast cancelado');
+      toast.success('Disparo cancelado');
       if (pollRef.current) clearInterval(pollRef.current);
       // Atualizar progresso uma última vez
       const res = await broadcastApi.progress(broadcastId);
@@ -330,7 +330,7 @@ export default function BroadcastPage() {
             <ArrowLeft size={20} strokeWidth={1.75} />
           </button>
           <div>
-            <h1 style={{ fontSize: '22px', fontWeight: 600, color: '#1F2937', margin: 0 }}>Broadcast</h1>
+            <h1 style={{ fontSize: '22px', fontWeight: 600, color: '#1F2937', margin: 0 }}>Disparo</h1>
             <p style={{ fontSize: '13px', color: '#6B7280', marginTop: '2px' }}>
               Envie mensagens em massa para contatos por etiqueta do Chatwoot
             </p>
@@ -839,7 +839,7 @@ export default function BroadcastPage() {
                       <CheckCircle2 size={36} style={{ color: '#10B981' }} />
                     </div>
                     <h2 style={{ fontSize: '22px', fontWeight: 600, color: '#1F2937', margin: '0 0 4px' }}>
-                      Broadcast Concluído!
+                      Disparo Concluído!
                     </h2>
                   </>
                 ) : progress?.status === 'CANCELLED' ? (
@@ -859,7 +859,7 @@ export default function BroadcastPage() {
                       <StopCircle size={36} style={{ color: '#EF4444' }} />
                     </div>
                     <h2 style={{ fontSize: '22px', fontWeight: 600, color: '#1F2937', margin: '0 0 4px' }}>
-                      Broadcast Cancelado
+                      Disparo Cancelado
                     </h2>
                   </>
                 ) : (
@@ -1041,7 +1041,7 @@ export default function BroadcastPage() {
                       onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#2563EB')}
                       onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#3B82F6')}
                     >
-                      Novo Broadcast
+                      Novo Disparo
                     </button>
                     <button
                       onClick={() => navigate('/')}
