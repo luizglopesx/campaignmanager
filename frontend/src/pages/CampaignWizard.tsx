@@ -995,7 +995,7 @@ export default function CampaignWizard() {
                   </li>
                   <li style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', marginBottom: '12px' }}>
                     <span style={{ color: '#6B7280' }}>Cards no Carrossel:</span>
-                    <span style={{ fontWeight: 700, color: '#1F2937' }}>{images.length}</span>
+                    <span style={{ fontWeight: 700, color: '#1F2937' }}>{cards.length}</span>
                   </li>
                   <li style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', marginBottom: '12px' }}>
                     <span style={{ color: '#6B7280' }}>Status:</span>

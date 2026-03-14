@@ -295,10 +295,15 @@ export default function CampaignsPage() {
                       overflow: 'hidden',
                     }}
                   >
-                    {camp.images?.length > 0 ? (
+                    {camp.images?.length > 0 && camp.images[0].imageUrl ? (
                       <img src={camp.images[0].imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
-                      <Image size={32} strokeWidth={1.25} style={{ color: '#9CA3AF' }} />
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                        <Image size={32} strokeWidth={1.25} style={{ color: '#9CA3AF' }} />
+                        {camp.images?.length > 0 && (
+                          <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{camp.images.length} cards</span>
+                        )}
+                      </div>
                     )}
                     <span
                       style={{
@@ -330,7 +335,7 @@ export default function CampaignsPage() {
                     {/* Stats Row */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#6B7280' }}>
-                        <Image size={13} strokeWidth={1.75} /> {camp.images?.length || 0}
+                        <Image size={13} strokeWidth={1.75} /> {camp.images?.length || 0} cards
                       </span>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#6B7280' }}>
                         <Users size={13} strokeWidth={1.75} /> {camp._count?.recipients || 0}
