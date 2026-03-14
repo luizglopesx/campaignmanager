@@ -104,6 +104,22 @@ export default function CarouselEditor({ cards, onChange, disabled }: CarouselEd
 
   return (
     <div>
+      {/* Info sobre compatibilidade */}
+      <div
+        style={{
+          backgroundColor: '#FFFBEB',
+          border: '1px solid #FDE68A',
+          borderRadius: '8px',
+          padding: '10px 14px',
+          marginBottom: '16px',
+          fontSize: '12px',
+          color: '#92400E',
+          lineHeight: 1.5,
+        }}
+      >
+        Carrossel requer <strong>minimo 2 cards</strong> e maximo 10. Funciona em Android e WhatsApp Web. iOS mostra aviso de conteudo nao suportado.
+      </div>
+
       {/* Cards horizontais */}
       {cards.length > 0 && (
         <div
@@ -149,9 +165,19 @@ export default function CarouselEditor({ cards, onChange, disabled }: CarouselEd
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{
+                    backgroundColor: 'rgba(33,128,141,0.1)',
+                    color: '#21808D',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    padding: '1px 7px',
+                    borderRadius: '10px',
+                  }}>
+                    {index + 1}
+                  </span>
                   <GripVertical size={14} style={{ color: '#B0B0B0' }} />
                   <span style={{ fontSize: '13px', fontWeight: 600, color: '#13343B' }}>
-                    Card {index + 1}
+                    {card.header || `Card ${index + 1}`}
                   </span>
                 </div>
                 <div style={{ display: 'flex', gap: '4px' }} onClick={e => e.stopPropagation()}>
@@ -215,12 +241,12 @@ export default function CarouselEditor({ cards, onChange, disabled }: CarouselEd
 
               {/* Card Content */}
               <div style={{ padding: '12px' }} onClick={e => e.stopPropagation()}>
-                {/* Header */}
+                {/* Header / Titulo */}
                 <div style={{ marginBottom: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                     <Type size={12} style={{ color: '#9CA3AF' }} />
                     <span style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      Titulo
+                      Titulo do Card
                     </span>
                   </div>
                   <input
@@ -228,26 +254,26 @@ export default function CarouselEditor({ cards, onChange, disabled }: CarouselEd
                     value={card.header || ''}
                     onChange={e => updateCard(index, 'header', e.target.value)}
                     disabled={disabled}
-                    placeholder="Titulo do card..."
+                    placeholder="Ex: Colchao Ortopedico..."
                     style={inputStyle}
                     onFocus={e => { e.currentTarget.style.borderColor = '#21808D'; }}
                     onBlur={e => { e.currentTarget.style.borderColor = '#E5E7EB'; }}
                   />
                 </div>
 
-                {/* Body / Caption */}
+                {/* Body / Texto */}
                 <div style={{ marginBottom: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                     <Type size={12} style={{ color: '#9CA3AF' }} />
                     <span style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      Texto
+                      Texto do Card
                     </span>
                   </div>
                   <textarea
                     value={card.caption || ''}
                     onChange={e => updateCard(index, 'caption', e.target.value)}
                     disabled={disabled}
-                    placeholder={`Descricao do card ${index + 1}...`}
+                    placeholder={`Descricao, preco, detalhes...\nEx: A partir de R$ 999,90`}
                     rows={expandedCard === index ? 4 : 2}
                     style={{
                       ...inputStyle,
@@ -258,7 +284,7 @@ export default function CarouselEditor({ cards, onChange, disabled }: CarouselEd
                     onBlur={e => { e.currentTarget.style.borderColor = '#E5E7EB'; }}
                   />
                   <p style={{ fontSize: '11px', color: '#B0B0B0', margin: '3px 0 0', lineHeight: 1.3 }}>
-                    Use {'{{nome}}'} para personalizar
+                    Use {'{{nome}}'} para personalizar. Use \\n para quebra de linha.
                   </p>
                 </div>
 
@@ -343,6 +369,24 @@ export default function CarouselEditor({ cards, onChange, disabled }: CarouselEd
         </div>
       )}
 
+      {/* Validation warning */}
+      {cards.length === 1 && (
+        <div
+          style={{
+            marginTop: '8px',
+            padding: '8px 12px',
+            backgroundColor: '#FEF2F2',
+            border: '1px solid #FECACA',
+            borderRadius: '6px',
+            fontSize: '12px',
+            color: '#DC2626',
+            fontWeight: 500,
+          }}
+        >
+          Adicione pelo menos mais 1 card. O carrossel requer minimo de 2 cards.
+        </div>
+      )}
+
       {/* Empty state */}
       {cards.length === 0 && (
         <div
@@ -380,7 +424,7 @@ export default function CarouselEditor({ cards, onChange, disabled }: CarouselEd
       )}
 
       {/* Add card button (when cards exist) */}
-      {cards.length > 0 && !disabled && (
+      {cards.length > 0 && cards.length < 10 && !disabled && (
         <div style={{ marginTop: '12px' }}>
           <button
             onClick={addCard}
@@ -398,7 +442,7 @@ export default function CarouselEditor({ cards, onChange, disabled }: CarouselEd
               fontWeight: 500,
             }}
           >
-            <Plus size={16} /> Adicionar card
+            <Plus size={16} /> Adicionar card ({cards.length}/10)
           </button>
         </div>
       )}

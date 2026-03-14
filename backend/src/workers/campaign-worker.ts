@@ -69,7 +69,7 @@ async function processCampaignMessage(job: Job<CampaignJobData>) {
 
     // Verificar tipo de campanha
     if (campaign.images.length > 0) {
-      // Campanha carrossel nativo (cards com texto e botões)
+      // Campanha carrossel nativo (cards com texto e botões, min 2 cards)
       const cards = campaign.images.map((card: any) => ({
         header: card.header
           ? replaceVariables(card.header, recipient)

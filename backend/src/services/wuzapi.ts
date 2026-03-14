@@ -116,7 +116,16 @@ export async function sendImage(
 }
 
 /**
+ * Formata número para endpoint carousel (sem @s.whatsapp.net)
+ */
+function formatPhoneRaw(phone: string): string {
+  return phone.replace(/\D/g, '');
+}
+
+/**
  * Envia carrossel nativo via WhatsApp (cards com texto e botões)
+ * Requer entre 2 e 10 cards.
+ * Android/Web: renderiza normalmente. iOS: mostra aviso de conteúdo não suportado.
  */
 export async function sendCarousel(
   phone: string,
@@ -136,12 +145,16 @@ export async function sendCarousel(
 
   try {
     const res = await client.post('/chat/send/carousel', {
-      phone: formatPhone(phone),
+      phone: formatPhoneRaw(phone),
       body: options.body,
       header: options.header || '',
       footer: options.footer || '',
       carouselType: 'HSCROLL_CARDS',
-      cards: options.cards,
+      cards: options.cards.map(card => ({
+        header: card.header,
+        body: card.body,
+        buttons: card.buttons,
+      })),
     });
 
     return {

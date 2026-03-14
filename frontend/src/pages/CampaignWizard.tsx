@@ -124,6 +124,10 @@ export default function CampaignWizard() {
   };
 
   const saveCards = async () => {
+    if (cards.length > 0 && cards.length < 2) {
+      toast.error('O carrossel requer minimo de 2 cards.');
+      return;
+    }
     setIsSaving(true);
     try {
       await campaignsApi.addImages(id!, {
