@@ -116,31 +116,45 @@ export async function sendImage(
 }
 
 /**
- * Envia múltiplas imagens em sequência (simulando carrossel)
+ * Envia carrossel nativo via WhatsApp (cards com texto e botões)
  */
 export async function sendCarousel(
   phone: string,
-  images: { url: string; caption?: string }[],
-  delayMs: number = 1500
-): Promise<{ success: boolean; results: any[]; error?: string }> {
-  const results: any[] = [];
-
-  for (let i = 0; i < images.length; i++) {
-    const img = images[i];
-    const result = await sendImage(phone, img.url, img.caption);
-    results.push(result);
-
-    if (!result.success) {
-      return { success: false, results, error: `Falha ao enviar imagem ${i + 1}: ${result.error}` };
-    }
-
-    // Delay entre envios para não sobrecarregar
-    if (i < images.length - 1) {
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-    }
+  options: {
+    body: string;
+    header?: string;
+    footer?: string;
+    cards: {
+      header: string;
+      body: string;
+      buttons: { buttonId: string; buttonText: string }[];
+    }[];
   }
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const cfg = await getConfig();
+  const client = createClient(cfg);
 
-  return { success: true, results };
+  try {
+    const res = await client.post('/chat/send/carousel', {
+      phone: formatPhone(phone),
+      body: options.body,
+      header: options.header || '',
+      footer: options.footer || '',
+      carouselType: 'HSCROLL_CARDS',
+      cards: options.cards,
+    });
+
+    return {
+      success: true,
+      messageId: res.data?.MessageID || res.data?.Id,
+    };
+  } catch (error: any) {
+    console.error('WuzAPI sendCarousel error:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message,
+    };
+  }
 }
 
 /**

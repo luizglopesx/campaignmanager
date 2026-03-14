@@ -1,316 +1,350 @@
-import { useState, useRef } from 'react';
-import { Upload, X, ArrowLeft, ArrowRight, Image as ImageIcon, Type } from 'lucide-react';
-import { uploadApi } from '../services/api';
-import toast from 'react-hot-toast';
+import { useState } from 'react';
+import { Plus, X, ArrowLeft, ArrowRight, Type, MousePointerClick, GripVertical } from 'lucide-react';
 
-export interface CarouselImage {
-  id?: string;
-  imageUrl: string;
-  caption?: string;
-  order: number;
+export interface CardButton {
+  buttonId: string;
+  buttonText: string;
 }
 
+export interface CarouselCard {
+  id?: string;
+  header: string;
+  caption: string;
+  buttons: CardButton[];
+  order: number;
+  imageUrl?: string | null;
+}
+
+// Backwards compat alias
+export type CarouselImage = CarouselCard;
+
 interface CarouselEditorProps {
-  images: CarouselImage[];
-  onChange: (images: CarouselImage[]) => void;
+  cards: CarouselCard[];
+  onChange: (cards: CarouselCard[]) => void;
   disabled?: boolean;
 }
 
-export default function CarouselEditor({ images, onChange, disabled }: CarouselEditorProps) {
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+export default function CarouselEditor({ cards, onChange, disabled }: CarouselEditorProps) {
+  const [expandedCard, setExpandedCard] = useState<number | null>(null);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    setUploading(true);
-    try {
-      const newImages = [...images];
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        if (!file.type.startsWith('image/')) {
-          toast.error(`O arquivo ${file.name} não é uma imagem válida.`);
-          continue;
-        }
-
-        const res = await uploadApi.image(file);
-        newImages.push({
-          imageUrl: res.data.url,
-          caption: '',
-          order: newImages.length,
-        });
-      }
-      onChange(newImages);
-      toast.success('Imagem(ns) carregada(s) com sucesso!');
-    } catch (error) {
-      toast.error('Erro ao fazer upload da imagem.');
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
+  const addCard = () => {
+    const newCards = [...cards, {
+      header: '',
+      caption: '',
+      buttons: [{ buttonId: `btn_${Date.now()}`, buttonText: '' }],
+      order: cards.length,
+    }];
+    onChange(newCards);
+    setExpandedCard(newCards.length - 1);
   };
 
-  const removeImage = (index: number) => {
-    const newImages = [...images];
-    newImages.splice(index, 1);
-    newImages.forEach((img, i) => { img.order = i; });
-    onChange(newImages);
+  const removeCard = (index: number) => {
+    const newCards = [...cards];
+    newCards.splice(index, 1);
+    newCards.forEach((c, i) => { c.order = i; });
+    onChange(newCards);
+    if (expandedCard === index) setExpandedCard(null);
   };
 
   const moveLeft = (index: number) => {
     if (index === 0) return;
-    const newImages = [...images];
-    const temp = newImages[index - 1];
-    newImages[index - 1] = newImages[index];
-    newImages[index] = temp;
-    newImages.forEach((img, i) => { img.order = i; });
-    onChange(newImages);
+    const newCards = [...cards];
+    [newCards[index - 1], newCards[index]] = [newCards[index], newCards[index - 1]];
+    newCards.forEach((c, i) => { c.order = i; });
+    onChange(newCards);
+    setExpandedCard(index - 1);
   };
 
   const moveRight = (index: number) => {
-    if (index === images.length - 1) return;
-    const newImages = [...images];
-    const temp = newImages[index + 1];
-    newImages[index + 1] = newImages[index];
-    newImages[index] = temp;
-    newImages.forEach((img, i) => { img.order = i; });
-    onChange(newImages);
+    if (index === cards.length - 1) return;
+    const newCards = [...cards];
+    [newCards[index + 1], newCards[index]] = [newCards[index], newCards[index + 1]];
+    newCards.forEach((c, i) => { c.order = i; });
+    onChange(newCards);
+    setExpandedCard(index + 1);
   };
 
-  const updateCaption = (index: number, caption: string) => {
-    const newImages = [...images];
-    newImages[index] = { ...newImages[index], caption };
-    onChange(newImages);
+  const updateCard = (index: number, field: keyof CarouselCard, value: any) => {
+    const newCards = [...cards];
+    newCards[index] = { ...newCards[index], [field]: value };
+    onChange(newCards);
+  };
+
+  const addButton = (cardIndex: number) => {
+    const card = cards[cardIndex];
+    if ((card.buttons || []).length >= 3) return;
+    const newButtons = [...(card.buttons || []), { buttonId: `btn_${Date.now()}`, buttonText: '' }];
+    updateCard(cardIndex, 'buttons', newButtons);
+  };
+
+  const removeButton = (cardIndex: number, btnIndex: number) => {
+    const newButtons = [...(cards[cardIndex].buttons || [])];
+    newButtons.splice(btnIndex, 1);
+    updateCard(cardIndex, 'buttons', newButtons);
+  };
+
+  const updateButton = (cardIndex: number, btnIndex: number, field: keyof CardButton, value: string) => {
+    const newButtons = [...(cards[cardIndex].buttons || [])];
+    newButtons[btnIndex] = { ...newButtons[btnIndex], [field]: value };
+    updateCard(cardIndex, 'buttons', newButtons);
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '8px 10px',
+    border: '1px solid #E5E7EB',
+    borderRadius: '6px',
+    fontSize: '13px',
+    color: '#374151',
+    backgroundColor: disabled ? '#F9FAFB' : '#fff',
+    outline: 'none',
+    fontFamily: 'inherit',
+    boxSizing: 'border-box',
   };
 
   return (
     <div>
-      {/* Upload Zone */}
-      <div
-        onClick={() => !disabled && !uploading && fileInputRef.current?.click()}
-        style={{
-          border: '2px dashed',
-          borderColor: disabled ? '#D1D5DB' : '#93C5FD',
-          borderRadius: '12px',
-          padding: '24px',
-          textAlign: 'center',
-          cursor: disabled ? 'not-allowed' : 'pointer',
-          backgroundColor: disabled ? '#F9FAFB' : '#fff',
-          transition: 'border-color 0.2s, background-color 0.2s',
-          opacity: disabled ? 0.5 : 1,
-        }}
-        onMouseOver={e => {
-          if (!disabled) {
-            e.currentTarget.style.borderColor = '#3B82F6';
-            e.currentTarget.style.backgroundColor = '#EFF6FF';
-          }
-        }}
-        onMouseOut={e => {
-          if (!disabled) {
-            e.currentTarget.style.borderColor = '#93C5FD';
-            e.currentTarget.style.backgroundColor = '#fff';
-          }
-        }}
-      >
-        <input
-          type="file"
-          ref={fileInputRef}
-          style={{ display: 'none' }}
-          accept="image/*"
-          multiple
-          onChange={handleFileChange}
-          disabled={disabled || uploading}
-        />
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: '#6B7280' }}>
-          <Upload size={28} style={{ color: uploading ? '#3B82F6' : '#93C5FD' }} />
-          <p style={{ fontWeight: 500, color: '#374151', margin: 0, fontSize: '14px' }}>
-            {uploading ? 'Fazendo upload...' : 'Clique ou arraste imagens aqui'}
-          </p>
-          <p style={{ fontSize: '12px', margin: 0, color: '#9CA3AF' }}>Formatos: JPG, PNG, WEBP (Max 5MB)</p>
-        </div>
-      </div>
-
       {/* Cards horizontais */}
-      {images.length > 0 && (
+      {cards.length > 0 && (
         <div
-          ref={scrollRef}
           style={{
             display: 'flex',
             gap: '16px',
             overflowX: 'auto',
             paddingBottom: '8px',
-            paddingTop: '20px',
+            paddingTop: '4px',
             scrollBehavior: 'smooth',
           }}
         >
-          {images.map((img, index) => (
+          {cards.map((card, index) => (
             <div
               key={index}
+              onClick={() => setExpandedCard(expandedCard === index ? null : index)}
               style={{
-                minWidth: '240px',
-                maxWidth: '240px',
+                minWidth: expandedCard === index ? '320px' : '240px',
+                maxWidth: expandedCard === index ? '320px' : '240px',
                 backgroundColor: '#fff',
-                border: '1px solid #E5E7EB',
+                border: expandedCard === index ? '2px solid #21808D' : '1px solid #E5E7EB',
                 borderRadius: '12px',
                 overflow: 'hidden',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                boxShadow: expandedCard === index
+                  ? '0 4px 12px rgba(33,128,141,0.15)'
+                  : '0 1px 3px rgba(0,0,0,0.06)',
                 display: 'flex',
                 flexDirection: 'column',
                 flexShrink: 0,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
               }}
             >
-              {/* Image */}
-              <div style={{ position: 'relative', width: '240px', height: '160px', backgroundColor: '#F3F4F6' }}>
-                <img
-                  src={img.imageUrl}
-                  alt={`Card ${index + 1}`}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                />
-                {/* Badge de ordem */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '8px',
-                    left: '8px',
-                    backgroundColor: 'rgba(0,0,0,0.6)',
-                    color: '#fff',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    padding: '2px 8px',
-                    borderRadius: '10px',
-                  }}
-                >
-                  {index + 1}
+              {/* Card Header Bar */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 12px',
+                  backgroundColor: '#F8FFFE',
+                  borderBottom: '1px solid #E5E7EB',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <GripVertical size={14} style={{ color: '#B0B0B0' }} />
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: '#13343B' }}>
+                    Card {index + 1}
+                  </span>
                 </div>
-                {/* Actions overlay */}
-                {!disabled && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '6px',
-                      right: '6px',
-                      display: 'flex',
-                      gap: '4px',
-                    }}
-                  >
+                <div style={{ display: 'flex', gap: '4px' }} onClick={e => e.stopPropagation()}>
+                  {cards.length > 1 && (
+                    <>
+                      <button
+                        onClick={() => moveLeft(index)}
+                        disabled={disabled || index === 0}
+                        style={{
+                          padding: '3px 6px',
+                          backgroundColor: 'transparent',
+                          border: '1px solid #E5E7EB',
+                          borderRadius: '4px',
+                          cursor: index === 0 ? 'not-allowed' : 'pointer',
+                          opacity: index === 0 ? 0.3 : 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          color: '#374151',
+                        }}
+                      >
+                        <ArrowLeft size={12} />
+                      </button>
+                      <button
+                        onClick={() => moveRight(index)}
+                        disabled={disabled || index === cards.length - 1}
+                        style={{
+                          padding: '3px 6px',
+                          backgroundColor: 'transparent',
+                          border: '1px solid #E5E7EB',
+                          borderRadius: '4px',
+                          cursor: index === cards.length - 1 ? 'not-allowed' : 'pointer',
+                          opacity: index === cards.length - 1 ? 0.3 : 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          color: '#374151',
+                        }}
+                      >
+                        <ArrowRight size={12} />
+                      </button>
+                    </>
+                  )}
+                  {!disabled && (
                     <button
-                      onClick={() => removeImage(index)}
+                      onClick={() => removeCard(index)}
                       style={{
-                        padding: '4px',
-                        backgroundColor: '#EF4444',
+                        padding: '3px 6px',
+                        backgroundColor: '#FEE2E2',
                         border: 'none',
-                        borderRadius: '6px',
-                        color: '#fff',
+                        borderRadius: '4px',
+                        color: '#EF4444',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                      title="Remover"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                )}
-                {/* Move buttons */}
-                {!disabled && images.length > 1 && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: '6px',
-                      left: '6px',
-                      right: '6px',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                    }}
-                  >
-                    <button
-                      onClick={() => moveLeft(index)}
-                      disabled={index === 0}
-                      style={{
-                        padding: '4px 8px',
-                        backgroundColor: 'rgba(255,255,255,0.85)',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: index === 0 ? 'not-allowed' : 'pointer',
-                        opacity: index === 0 ? 0.3 : 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        color: '#374151',
                       }}
                     >
-                      <ArrowLeft size={14} />
+                      <X size={12} />
                     </button>
-                    <button
-                      onClick={() => moveRight(index)}
-                      disabled={index === images.length - 1}
-                      style={{
-                        padding: '4px 8px',
-                        backgroundColor: 'rgba(255,255,255,0.85)',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: index === images.length - 1 ? 'not-allowed' : 'pointer',
-                        opacity: index === images.length - 1 ? 0.3 : 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        color: '#374151',
-                      }}
-                    >
-                      <ArrowRight size={14} />
-                    </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
-              {/* Caption */}
-              <div style={{ padding: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                  <Type size={13} style={{ color: '#9CA3AF' }} />
-                  <span style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Legenda
-                  </span>
+              {/* Card Content */}
+              <div style={{ padding: '12px' }} onClick={e => e.stopPropagation()}>
+                {/* Header */}
+                <div style={{ marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                    <Type size={12} style={{ color: '#9CA3AF' }} />
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Titulo
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    value={card.header || ''}
+                    onChange={e => updateCard(index, 'header', e.target.value)}
+                    disabled={disabled}
+                    placeholder="Titulo do card..."
+                    style={inputStyle}
+                    onFocus={e => { e.currentTarget.style.borderColor = '#21808D'; }}
+                    onBlur={e => { e.currentTarget.style.borderColor = '#E5E7EB'; }}
+                  />
                 </div>
-                <textarea
-                  value={img.caption || ''}
-                  onChange={e => updateCaption(index, e.target.value)}
-                  disabled={disabled}
-                  placeholder={`Texto do card ${index + 1}...`}
-                  rows={3}
-                  style={{
-                    width: '100%',
-                    padding: '8px 10px',
-                    border: '1px solid #E5E7EB',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    color: '#374151',
-                    backgroundColor: disabled ? '#F9FAFB' : '#fff',
-                    outline: 'none',
-                    resize: 'none',
-                    fontFamily: 'inherit',
-                    boxSizing: 'border-box',
-                    lineHeight: 1.4,
-                  }}
-                  onFocus={e => {
-                    e.currentTarget.style.borderColor = '#3B82F6';
-                    e.currentTarget.style.boxShadow = '0 0 0 2px rgba(59,130,246,0.10)';
-                  }}
-                  onBlur={e => {
-                    e.currentTarget.style.borderColor = '#E5E7EB';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                />
-                <p style={{ fontSize: '11px', color: '#B0B0B0', margin: '4px 0 0', lineHeight: 1.3 }}>
-                  Use {'{{nome}}'} para personalizar
-                </p>
+
+                {/* Body / Caption */}
+                <div style={{ marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                    <Type size={12} style={{ color: '#9CA3AF' }} />
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Texto
+                    </span>
+                  </div>
+                  <textarea
+                    value={card.caption || ''}
+                    onChange={e => updateCard(index, 'caption', e.target.value)}
+                    disabled={disabled}
+                    placeholder={`Descricao do card ${index + 1}...`}
+                    rows={expandedCard === index ? 4 : 2}
+                    style={{
+                      ...inputStyle,
+                      resize: 'none',
+                      lineHeight: 1.4,
+                    }}
+                    onFocus={e => { e.currentTarget.style.borderColor = '#21808D'; }}
+                    onBlur={e => { e.currentTarget.style.borderColor = '#E5E7EB'; }}
+                  />
+                  <p style={{ fontSize: '11px', color: '#B0B0B0', margin: '3px 0 0', lineHeight: 1.3 }}>
+                    Use {'{{nome}}'} para personalizar
+                  </p>
+                </div>
+
+                {/* Buttons */}
+                {expandedCard === index && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                      <MousePointerClick size={12} style={{ color: '#9CA3AF' }} />
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Botoes (max 3)
+                      </span>
+                    </div>
+                    {(card.buttons || []).map((btn, btnIndex) => (
+                      <div key={btnIndex} style={{ display: 'flex', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
+                        <input
+                          type="text"
+                          value={btn.buttonText}
+                          onChange={e => updateButton(index, btnIndex, 'buttonText', e.target.value)}
+                          disabled={disabled}
+                          placeholder="Texto do botao..."
+                          style={{ ...inputStyle, flex: 1 }}
+                          onFocus={e => { e.currentTarget.style.borderColor = '#21808D'; }}
+                          onBlur={e => { e.currentTarget.style.borderColor = '#E5E7EB'; }}
+                        />
+                        <input
+                          type="text"
+                          value={btn.buttonId}
+                          onChange={e => updateButton(index, btnIndex, 'buttonId', e.target.value)}
+                          disabled={disabled}
+                          placeholder="ID..."
+                          style={{ ...inputStyle, width: '80px', flex: 'none', fontSize: '11px' }}
+                          onFocus={e => { e.currentTarget.style.borderColor = '#21808D'; }}
+                          onBlur={e => { e.currentTarget.style.borderColor = '#E5E7EB'; }}
+                        />
+                        {!disabled && (
+                          <button
+                            onClick={() => removeButton(index, btnIndex)}
+                            style={{
+                              padding: '4px',
+                              backgroundColor: '#FEE2E2',
+                              border: 'none',
+                              borderRadius: '4px',
+                              color: '#EF4444',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {!disabled && (card.buttons || []).length < 3 && (
+                      <button
+                        onClick={() => addButton(index)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '5px 10px',
+                          backgroundColor: '#F0FDFA',
+                          border: '1px dashed #21808D',
+                          borderRadius: '6px',
+                          color: '#21808D',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          fontWeight: 500,
+                          width: '100%',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Plus size={12} /> Adicionar botao
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {images.length === 0 && !uploading && (
+      {/* Empty state */}
+      {cards.length === 0 && (
         <div
           style={{
             padding: '40px 16px',
@@ -318,11 +352,54 @@ export default function CarouselEditor({ images, onChange, disabled }: CarouselE
             borderRadius: '12px',
             border: '1px solid #E5E7EB',
             textAlign: 'center',
-            marginTop: '16px',
           }}
         >
-          <ImageIcon size={32} style={{ color: '#D1D5DB', marginBottom: '8px' }} />
-          <p style={{ fontSize: '14px', color: '#9CA3AF', margin: 0 }}>Nenhuma imagem adicionada ao carrossel.</p>
+          <MousePointerClick size={32} style={{ color: '#D1D5DB', marginBottom: '8px' }} />
+          <p style={{ fontSize: '14px', color: '#9CA3AF', margin: '0 0 12px' }}>Nenhum card adicionado ao carrossel.</p>
+          {!disabled && (
+            <button
+              onClick={addCard}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 16px',
+                backgroundColor: '#21808D',
+                border: 'none',
+                borderRadius: '8px',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 500,
+              }}
+            >
+              <Plus size={16} /> Criar primeiro card
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Add card button (when cards exist) */}
+      {cards.length > 0 && !disabled && (
+        <div style={{ marginTop: '12px' }}>
+          <button
+            onClick={addCard}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 16px',
+              backgroundColor: '#F0FDFA',
+              border: '1px dashed #21808D',
+              borderRadius: '8px',
+              color: '#21808D',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: 500,
+            }}
+          >
+            <Plus size={16} /> Adicionar card
+          </button>
         </div>
       )}
     </div>

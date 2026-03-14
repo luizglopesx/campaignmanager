@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { campaignsApi, broadcastApi, contactsApi } from '../services/api';
 import CarouselEditor from '../components/CarouselEditor';
-import type { CarouselImage } from '../components/CarouselEditor';
+import type { CarouselCard } from '../components/CarouselEditor';
 import toast from 'react-hot-toast';
 import { ChevronRight, ArrowLeft, CheckCircle2, Users, Send, Megaphone, Play, Tag, Search, UserPlus, UsersRound } from 'lucide-react';
 
@@ -14,9 +14,9 @@ export default function CampaignWizard() {
   const [campaign, setCampaign] = useState<any>(null);
 
   // Step 1 - Detalhes
-  const [details, setDetails] = useState({ name: '', description: '' });
+  const [details, setDetails] = useState({ name: '', description: '', carouselHeader: '', carouselFooter: '' });
   // Step 2 - Carrossel (cards)
-  const [images, setImages] = useState<CarouselImage[]>([]);
+  const [cards, setCards] = useState<CarouselCard[]>([]);
   // Step 3 - Destinatários
   const [recipientsText, setRecipientsText] = useState('');
   const [recipientMode, setRecipientMode] = useState<'label' | 'all' | 'manual'>('label');
@@ -40,13 +40,20 @@ export default function CampaignWizard() {
       const res = await campaignsApi.get(id!);
       const data = res.data;
       setCampaign(data);
-      setDetails({ name: data.name, description: data.description || '' });
-      setImages(
-        (data.images || []).map((img: any) => ({
-          id: img.id,
-          imageUrl: img.imageUrl,
-          caption: img.caption || '',
-          order: img.order,
+      setDetails({
+        name: data.name,
+        description: data.description || '',
+        carouselHeader: data.carouselHeader || '',
+        carouselFooter: data.carouselFooter || '',
+      });
+      setCards(
+        (data.images || []).map((card: any) => ({
+          id: card.id,
+          header: card.header || '',
+          caption: card.caption || '',
+          buttons: Array.isArray(card.buttons) ? card.buttons : [],
+          order: card.order,
+          imageUrl: card.imageUrl || null,
         }))
       );
 
@@ -116,14 +123,15 @@ export default function CampaignWizard() {
     }
   };
 
-  const saveImages = async () => {
+  const saveCards = async () => {
     setIsSaving(true);
     try {
       await campaignsApi.addImages(id!, {
-        images: images.map(img => ({
-          imageUrl: img.imageUrl,
-          caption: img.caption || '',
-          order: img.order,
+        images: cards.map(card => ({
+          header: card.header || '',
+          caption: card.caption || '',
+          buttons: card.buttons || [],
+          order: card.order,
         })),
       });
       toast.success('Cards salvos');
@@ -425,17 +433,48 @@ export default function CampaignWizard() {
               </div>
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>
-                  Descrição / Observações (opcional, uso interno)
+                  Texto principal do carrossel (body)
                 </label>
                 <textarea
                   value={details.description}
                   onChange={e => setDetails({ ...details, description: e.target.value })}
                   disabled={!isDraft}
-                  placeholder="Anotações internas sobre a campanha..."
+                  placeholder="Texto principal que aparece acima dos cards..."
                   rows={3}
                   style={{ ...inputStyle(!isDraft), resize: 'vertical' }}
                   {...(!isDraft ? {} : focusHandlers)}
                 />
+                <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '4px 0 0' }}>
+                  Use {'{{nome}}'} para personalizar com o nome do destinatario
+                </p>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>
+                    Header do carrossel (opcional)
+                  </label>
+                  <input
+                    value={details.carouselHeader}
+                    onChange={e => setDetails({ ...details, carouselHeader: e.target.value })}
+                    disabled={!isDraft}
+                    placeholder="Ex: Confira nossas ofertas"
+                    style={inputStyle(!isDraft)}
+                    {...(!isDraft ? {} : focusHandlers)}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>
+                    Footer do carrossel (opcional)
+                  </label>
+                  <input
+                    value={details.carouselFooter}
+                    onChange={e => setDetails({ ...details, carouselFooter: e.target.value })}
+                    disabled={!isDraft}
+                    placeholder="Ex: Deslize para ver mais"
+                    style={inputStyle(!isDraft)}
+                    {...(!isDraft ? {} : focusHandlers)}
+                  />
+                </div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '8px' }}>
                 <button
@@ -470,9 +509,9 @@ export default function CampaignWizard() {
               <div style={{ flex: 1 }}>
                 <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1F2937', margin: '0 0 8px' }}>Cards do Carrossel</h2>
                 <p style={{ fontSize: '14px', color: '#6B7280', marginBottom: '24px' }}>
-                  Adicione imagens e escreva a legenda de cada card. Cada imagem será enviada com seu próprio texto.
+                  Monte os cards do carrossel com titulo, texto e botoes interativos.
                 </p>
-                <CarouselEditor images={images} onChange={setImages} disabled={!isDraft} />
+                <CarouselEditor cards={cards} onChange={setCards} disabled={!isDraft} />
               </div>
               <div
                 style={{
@@ -503,7 +542,7 @@ export default function CampaignWizard() {
                   Voltar
                 </button>
                 <button
-                  onClick={saveImages}
+                  onClick={saveCards}
                   disabled={isSaving || !isDraft}
                   style={{
                     display: 'flex',
@@ -916,7 +955,7 @@ export default function CampaignWizard() {
 
               <h2 style={{ fontSize: '22px', fontWeight: 600, color: '#1F2937', margin: '0 0 8px' }}>Tudo pronto!</h2>
               <p style={{ fontSize: '14px', color: '#6B7280', maxWidth: '420px', margin: '0 auto 32px', lineHeight: 1.6 }}>
-                Sua campanha possui <strong style={{ color: '#374151' }}>{images.length} cards</strong> e{' '}
+                Sua campanha possui <strong style={{ color: '#374151' }}>{cards.length} cards</strong> e{' '}
                 <strong style={{ color: '#374151' }}>{campaign._count?.recipients || 0} destinatários</strong> na fila.
               </p>
 

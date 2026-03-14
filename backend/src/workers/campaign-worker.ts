@@ -69,18 +69,27 @@ async function processCampaignMessage(job: Job<CampaignJobData>) {
 
     // Verificar tipo de campanha
     if (campaign.images.length > 0) {
-      // Campanha com imagens (carrossel) — cada imagem pode ter sua própria legenda
-      const images = campaign.images.map((img: any) => ({
-        url: img.imageUrl,
-        caption: img.caption
-          ? replaceVariables(img.caption, recipient)
-          : undefined,
+      // Campanha carrossel nativo (cards com texto e botões)
+      const cards = campaign.images.map((card: any) => ({
+        header: card.header
+          ? replaceVariables(card.header, recipient)
+          : '',
+        body: card.caption
+          ? replaceVariables(card.caption, recipient)
+          : '',
+        buttons: Array.isArray(card.buttons) ? card.buttons : [],
       }));
 
       const result = await wuzapiService.sendCarousel(
         recipient.phone,
-        images,
-        config.messageDelayMs || 3000
+        {
+          body: campaign.description
+            ? replaceVariables(campaign.description, recipient)
+            : '',
+          header: campaign.carouselHeader || undefined,
+          footer: campaign.carouselFooter || undefined,
+          cards,
+        }
       );
       success = result.success;
       errorMessage = result.error || null;

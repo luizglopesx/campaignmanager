@@ -21,6 +21,8 @@ const createCampaignSchema = z.object({
 const updateCampaignSchema = z.object({
   name: z.string().optional(),
   description: z.string().optional(),
+  carouselHeader: z.string().optional().nullable(),
+  carouselFooter: z.string().optional().nullable(),
   status: z.enum(['DRAFT', 'SCHEDULED', 'RUNNING', 'COMPLETED', 'PAUSED']).optional(),
   startDate: z.string().optional().transform(str => str ? new Date(str) : undefined),
   endDate: z.string().optional().transform(str => str ? new Date(str) : undefined),
@@ -28,8 +30,13 @@ const updateCampaignSchema = z.object({
 
 const uploadImagesSchema = z.object({
   images: z.array(z.object({
-    imageUrl: z.string().url(),
+    imageUrl: z.string().url().optional().nullable(),
+    header: z.string().optional().nullable(),
     caption: z.string().optional().nullable(),
+    buttons: z.array(z.object({
+      buttonId: z.string(),
+      buttonText: z.string(),
+    })).optional().nullable(),
     order: z.number().int().default(0),
   })),
 });
@@ -207,8 +214,10 @@ router.post('/:id/images', authorize('ADMIN', 'OPERATOR'), async (req: Request, 
       await prisma.campaignImage.createMany({
         data: data.images.map(img => ({
           campaignId: id,
-          imageUrl: img.imageUrl,
+          imageUrl: img.imageUrl || null,
+          header: img.header || null,
           caption: img.caption,
+          buttons: img.buttons || undefined,
           order: img.order,
         })),
       });

@@ -171,15 +171,17 @@ model FollowUpMessage {
 }
 
 model Campaign {
-  id          String         @id @default(uuid())
-  name        String
-  description String?
-  status      CampaignStatus @default(DRAFT)
-  startDate   DateTime?      @map("start_date")
-  endDate     DateTime?      @map("end_date")
-  createdBy   String         @map("created_by")
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @updatedAt @map("updated_at")
+  id              String         @id @default(uuid())
+  name            String
+  description     String?
+  status          CampaignStatus @default(DRAFT)
+  carouselHeader  String?        @map("carousel_header")
+  carouselFooter  String?        @map("carousel_footer")
+  startDate       DateTime?      @map("start_date")
+  endDate         DateTime?      @map("end_date")
+  createdBy       String         @map("created_by")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
 
   user              User                @relation(fields: [createdBy], references: [id])
   images            CampaignImage[]
@@ -192,8 +194,10 @@ model Campaign {
 model CampaignImage {
   id         String  @id @default(uuid())
   campaignId String  @map("campaign_id")
-  imageUrl   String  @map("image_url")
+  imageUrl   String? @map("image_url")
+  header     String?
   caption    String?
+  buttons    Json?
   order      Int     @default(0)
 
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
